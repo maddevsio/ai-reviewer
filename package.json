@@ -1,0 +1,48 @@
+{
+  "name": "ai-code-review",
+  "version": "0.1.0",
+  "description": "AI-powered code review CLI tool",
+  "main": "dist/index.js",
+  "bin": {
+    "ai-review": "./bin/ai-review.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node bin/ai-review.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "code-review",
+    "ai",
+    "cli",
+    "github",
+    "pull-request"
+  ],
+  "author": "",
+  "license": "MIT",
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
+    "@octokit/rest": "^22.0.1",
+    "chalk": "^4.1.2",
+    "commander": "^12.0.0",
+    "conf": "^10.2.0",
+    "diff": "^5.2.0",
+    "execa": "^5.1.1",
+    "inquirer": "^8.2.6",
+    "ora": "^5.4.1"
+  },
+  "devDependencies": {
+    "@types/diff": "^5.0.9",
+    "@types/inquirer": "^9.0.7",
+    "@types/node": "^20.11.5",
+    "typescript": "^5.3.3"
+  }
+}

@@ -113,7 +113,3 @@ gh auth login
 - AI provider implementations (Anthropic, OpenAI, Google)
 - Full review workflow
 - Comment posting
-
-## License
-
-MIT

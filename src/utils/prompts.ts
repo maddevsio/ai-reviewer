@@ -1,6 +1,6 @@
 import * as readline from 'readline';
 import chalk from 'chalk';
-import {DISABLED_COLOR} from './colors';
+import {DISABLED_COLOR, WARNING_COLOR} from './colors';
 
 /**
  * Ask a yes/no question that requires explicit y or n keypress
@@ -48,5 +48,37 @@ export async function askYesNo(message: string): Promise<boolean> {
     };
 
     process.stdin.on('keypress', onKeypress);
+  });
+}
+
+/**
+ * Ask for confirmation by requiring user to type 'yes'
+ * User can press ESC to cancel
+ */
+export async function askConfirmation(message: string): Promise<boolean> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    readline.emitKeypressEvents(process.stdin);
+
+    const handleEscape = (str: string, key: readline.Key) => {
+      if (key && key.name === 'escape') {
+        rl.close();
+        process.stdout.write('\n');
+        process.stdin.removeListener('keypress', handleEscape);
+        resolve(false);
+      }
+    };
+
+    process.stdin.on('keypress', handleEscape);
+
+    rl.question(chalk.hex(WARNING_COLOR)(`${message} Type 'yes' to confirm (or press ESC to cancel): `), (answer) => {
+      process.stdin.removeListener('keypress', handleEscape);
+      rl.close();
+      resolve(answer.toLowerCase() === 'yes');
+    });
   });
 }

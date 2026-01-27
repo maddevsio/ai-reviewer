@@ -7,6 +7,8 @@ import {
   CommentInput,
   Author,
   FileChange,
+  ReviewAction,
+  ReviewSubmission,
 } from './base';
 
 interface RepoInfo {
@@ -175,6 +177,60 @@ export class GitHubPlatform extends BaseGitPlatform {
       }
     } catch (error: any) {
       throw new Error(`Failed to post comment: ${error.message}`);
+    }
+  }
+
+  async submitReview(prId: string, action: ReviewAction, body?: string): Promise<void> {
+    try {
+      const octokit = await this.getOctokit();
+      const repoInfo = await this.getRepoInfo();
+
+      await octokit.pulls.createReview({
+        owner: repoInfo.owner,
+        repo: repoInfo.repo,
+        pull_number: parseInt(prId, 10),
+        event: action,
+        body: body || '',
+      });
+    } catch (error: any) {
+      throw new Error(`Failed to submit review: ${error.message}`);
+    }
+  }
+
+  async submitReviewWithComments(prId: string, review: ReviewSubmission, commitSha: string): Promise<void> {
+    try {
+      const octokit = await this.getOctokit();
+      const repoInfo = await this.getRepoInfo();
+
+      // Build comments array for GitHub API
+      const comments = review.comments.map((comment) => {
+        const reviewComment: any = {
+          path: comment.path!,
+          body: comment.body,
+          line: comment.line!,
+          side: 'RIGHT',
+        };
+
+        // Add multi-line support if startLine is provided
+        if (comment.startLine !== undefined && comment.startLine !== comment.line) {
+          reviewComment.start_line = comment.startLine;
+          reviewComment.start_side = 'RIGHT';
+        }
+
+        return reviewComment;
+      });
+
+      await octokit.pulls.createReview({
+        owner: repoInfo.owner,
+        repo: repoInfo.repo,
+        pull_number: parseInt(prId, 10),
+        commit_id: commitSha,
+        event: review.action,
+        body: review.body,
+        comments: comments.length > 0 ? comments : undefined,
+      });
+    } catch (error: any) {
+      throw new Error(`Failed to submit review: ${error.message}`);
     }
   }
 

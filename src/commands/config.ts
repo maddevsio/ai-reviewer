@@ -11,11 +11,11 @@ function isValidConfigKey(key: string): key is keyof ConfigSchema {
 }
 
 export const configCommand = new Command('config')
-  .description('Manage configuration settings');
+  .description('Manage configuration settings (provider, api-key, platform)');
 
 configCommand
   .command('set <key> [value]')
-  .description('Set a configuration value (valid keys: provider, api-key, platform)')
+  .description('Set a configuration value. Valid keys: provider, api-key, platform. Omit value for interactive input.')
   .action(async (key: string, value?: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));
@@ -103,7 +103,7 @@ configCommand
 
 configCommand
   .command('get <key>')
-  .description('Get a configuration value')
+  .description('Get a specific configuration value. Valid keys: provider, api-key, platform.')
   .action((key: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));
@@ -120,7 +120,7 @@ configCommand
 
 configCommand
   .command('list')
-  .description('List all configuration settings')
+  .description('Display all current configuration settings (API keys are masked for security)')
   .action(() => {
     const config = listConfig();
     if (Object.keys(config).length === 0) {
@@ -145,7 +145,7 @@ function maskApiKey(key: string): string {
 
 configCommand
   .command('delete <key>')
-  .description('Delete a configuration value')
+  .description('Remove a configuration value. Valid keys: provider, api-key, platform.')
   .action((key: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));

@@ -54,6 +54,14 @@ export interface CommentInput {
   position?: number;
 }
 
+export type ReviewAction = 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT';
+
+export interface ReviewSubmission {
+  action: ReviewAction;
+  body: string;
+  comments: CommentInput[];
+}
+
 export interface GitPlatform {
   /**
    * List all open pull requests
@@ -71,6 +79,16 @@ export interface GitPlatform {
   postComment(prId: string, comment: CommentInput, commitSha?: string): Promise<void>;
 
   /**
+   * Submit a review with approval status
+   */
+  submitReview(prId: string, action: ReviewAction, body?: string): Promise<void>;
+
+  /**
+   * Submit a review with comments and approval status in one request
+   */
+  submitReviewWithComments(prId: string, review: ReviewSubmission, commitSha: string): Promise<void>;
+
+  /**
    * Check if the platform CLI/API is properly authenticated
    */
   isAuthenticated(): Promise<boolean>;
@@ -85,6 +103,8 @@ export abstract class BaseGitPlatform implements GitPlatform {
   abstract listPullRequests(): Promise<PullRequest[]>;
   abstract getPullRequestDetails(id: string): Promise<PullRequestDetails>;
   abstract postComment(prId: string, comment: CommentInput, commitSha?: string): Promise<void>;
+  abstract submitReview(prId: string, action: ReviewAction, body?: string): Promise<void>;
+  abstract submitReviewWithComments(prId: string, review: ReviewSubmission, commitSha: string): Promise<void>;
   abstract isAuthenticated(): Promise<boolean>;
   abstract getName(): string;
 

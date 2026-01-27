@@ -5,7 +5,7 @@ import ora from 'ora';
 import { parseDiff, getCodeContext } from '../utils/diff-parser';
 import { formatDistanceToNow } from '../utils/date';
 import { INFO_COLOR, SUCCESS_COLOR, WARNING_COLOR, SECONDARY_COLOR, ERROR_COLOR } from '../utils/colors';
-import { askYesNo } from '../utils/prompts';
+import { askYesNo, askConfirmation } from '../utils/prompts';
 import { displayCodeContext } from '../utils/code-display';
 
 interface ReviewOptions {
@@ -110,26 +110,11 @@ const MOCK_AI_COMMENTS = [
 /**
  * Simulate posting comments and asking for PR approval (demo only)
  */
-async function simulatePostingAndApproval(acceptedComments: ReviewComment[], id: string | undefined): Promise<void> {
-  let spinner = ora('Posting comments to PR...').start();
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-  spinner.succeed(chalk.hex(SECONDARY_COLOR)(`(Demo) `) + `Posted ${acceptedComments.length} comment(s) to PR #${id}`);
-
-  // Ask about PR approval
-  const shouldApprove = await askYesNo(`Would you like to approve PR #${id}?`);
-
-  if (shouldApprove) {
-    spinner = ora('Approving PR...').start();
-    await new Promise((resolve) => setTimeout(resolve, 800));
-    spinner.succeed(chalk.hex(SECONDARY_COLOR)(`(Demo) `) + `PR #${id} approved`);
-  }
-}
-
 export const demoCommand = new Command('demo')
-  .description('Demo mode with mock data')
-  .argument('[id]', 'Mock PR ID to review')
-  .option('--post', 'Simulate posting comments')
-  .option('--dry-run', 'Dry run mode')
+  .description('Try the tool with mock data (no setup or API keys required)')
+  .argument('[id]', 'Mock PR ID to review (342 or 341)')
+  .option('--post', 'Simulate auto-posting comments')
+  .option('--dry-run', 'Simulate dry-run mode')
   .action(async (id: string | undefined, options: ReviewOptions) => {
     console.log(chalk.hex(INFO_COLOR)('\n🔍 AI Code Review') + chalk.hex(SECONDARY_COLOR)(' (Demo Mode)\n'));
 
@@ -243,21 +228,103 @@ export const demoCommand = new Command('demo')
 
     console.log(chalk.bold(`\n${acceptedComments.length} comment(s) ready to post`));
 
+    let hasPendingComments = false;
+
     if (options.dryRun) {
       console.log(chalk.hex(WARNING_COLOR)('\n⚠ Dry run mode - comments not posted'));
       console.log('\nComments that would be posted:');
       acceptedComments.forEach((c, i) => {
         console.log(chalk.hex(SECONDARY_COLOR)(`${i + 1}. ${c.file}: ${c.comment}`));
       });
+      return;
     } else if (options.post) {
-      await simulatePostingAndApproval(acceptedComments, id);
+      console.log(chalk.hex(INFO_COLOR)(`\nPending ${acceptedComments.length} comment(s) to PR #${id}`));
+      hasPendingComments = true;
     } else {
       const shouldPost = await askYesNo(`Post ${acceptedComments.length} comment(s) to PR #${id}?`);
 
       if (shouldPost) {
-        await simulatePostingAndApproval(acceptedComments, id);
+        console.log(chalk.hex(INFO_COLOR)(`\nPending ${acceptedComments.length} comment(s) to PR #${id}`));
+        hasPendingComments = true;
       } else {
-        console.log(chalk.hex(INFO_COLOR)('\nComments not posted'));
+        console.log(chalk.hex(SECONDARY_COLOR)('\nComments not posted'));
+      }
+    }
+
+    // PR Review workflow - conditional menu based on pending comments
+    if (!options.dryRun) {
+      // With --post flag, only show approve/skip (automated flow)
+      // Otherwise, show full menu when comments are pending
+      const menuChoices = options.post
+        ? [
+            { name: 'Approve PR', value: 'approve' },
+            { name: 'Skip (do nothing)', value: 'skip' },
+          ]
+        : hasPendingComments
+        ? [
+            { name: 'Approve PR', value: 'approve' },
+            { name: 'Request changes', value: 'request_changes' },
+            { name: 'Comment only (no approval status)', value: 'comment' },
+            { name: 'Skip (do nothing)', value: 'skip' },
+          ]
+        : [
+            { name: 'Approve PR', value: 'approve' },
+            { name: 'Skip (do nothing)', value: 'skip' },
+          ];
+
+      const { reviewAction } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'reviewAction',
+          message: 'What would you like to do with this PR?',
+          choices: menuChoices,
+        },
+      ]);
+
+      if (reviewAction === 'approve') {
+        const confirmed = await askConfirmation('⚠️  Are you sure you want to APPROVE this PR?');
+
+        if (confirmed) {
+          let spinner = ora('Submitting PR approval...').start();
+          await new Promise((resolve) => setTimeout(resolve, 800));
+          spinner.succeed(chalk.hex(SECONDARY_COLOR)(`(Demo) `) + chalk.hex(SUCCESS_COLOR)(`PR #${id} approved ✓`));
+        } else {
+          console.log(chalk.hex(SECONDARY_COLOR)('\nApproval cancelled'));
+        }
+      } else if (reviewAction === 'request_changes') {
+        // Prompt for body message (required by GitHub)
+        const { reviewBody } = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'reviewBody',
+            message: 'Summary message for the change request:',
+            default: 'Please address the issues mentioned in the review comments.',
+            validate: (input: string) => input.trim().length > 0 || 'Message cannot be empty',
+          },
+        ]);
+
+        const confirmed = await askConfirmation('⚠️  Are you sure you want to REQUEST CHANGES for this PR?');
+
+        if (confirmed) {
+          let spinner = ora('Submitting change request...').start();
+          await new Promise((resolve) => setTimeout(resolve, 800));
+          spinner.succeed(chalk.hex(SECONDARY_COLOR)(`(Demo) `) + chalk.hex(SUCCESS_COLOR)(`Changes requested for PR #${id}`));
+        } else {
+          console.log(chalk.hex(SECONDARY_COLOR)('\nChange request cancelled'));
+        }
+      } else if (reviewAction === 'comment') {
+        let spinner = ora('Submitting review comments...').start();
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        spinner.succeed(chalk.hex(SECONDARY_COLOR)(`(Demo) `) + chalk.hex(SUCCESS_COLOR)(`Review submitted as comments only`));
+      } else {
+        // Skip - but if --post was used and there are comments, post them
+        if (options.post && hasPendingComments) {
+          let spinner = ora('Posting review comments...').start();
+          await new Promise((resolve) => setTimeout(resolve, 800));
+          spinner.succeed(chalk.hex(SECONDARY_COLOR)(`(Demo) `) + `Posted ${acceptedComments.length} comment(s) to PR #${id}`);
+        } else {
+          console.log(chalk.hex(SECONDARY_COLOR)('\nNo review action taken'));
+        }
       }
     }
   });

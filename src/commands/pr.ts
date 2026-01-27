@@ -7,10 +7,10 @@ import { SUCCESS_COLOR, WARNING_COLOR, ERROR_COLOR, SECONDARY_COLOR } from '../u
 import { askYesNo } from '../utils/prompts';
 
 export const prCommand = new Command('pr')
-  .description('Review pull requests')
-  .argument('[id]', 'Pull request ID to review')
-  .option('--post', 'Automatically post comments to PR')
-  .option('--dry-run', 'Show comments without posting')
+  .description('Review pull requests with AI assistance')
+  .argument('[id]', 'Pull request ID/number to review (optional, will show interactive selection if omitted)')
+  .option('--post', 'Automatically post accepted comments without confirmation prompt')
+  .option('--dry-run', 'Preview what comments would be posted without actually posting them')
   .action(async (id: string | undefined, options: { post?: boolean; dryRun?: boolean }) => {
     try {
       // Check if configuration exists

@@ -1,10 +1,17 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { getConfig, setConfig, deleteConfig, listConfig, ConfigSchema } from '../config/manager';
+import { getConfig, setConfig, deleteConfig, listConfig, ConfigSchema, getConfigInfo, getConfigScope } from '../config/manager';
 import { SUCCESS_COLOR, ERROR_COLOR, WARNING_COLOR, SECONDARY_COLOR, HIGHLIGHT_COLOR } from '../utils/colors';
 
-const VALID_KEYS: Array<keyof ConfigSchema> = ['provider', 'api-key', 'platform'];
+const VALID_KEYS: Array<keyof ConfigSchema> = [
+  'provider',
+  'api-key',
+  'platform',
+  'bitbucket-workspace',
+  'bitbucket-repo-slug',
+  'bitbucket-app-password',
+];
 
 function isValidConfigKey(key: string): key is keyof ConfigSchema {
   return VALID_KEYS.includes(key as keyof ConfigSchema);
@@ -15,7 +22,7 @@ export const configCommand = new Command('config')
 
 configCommand
   .command('set <key> [value]')
-  .description('Set a configuration value. Valid keys: provider, api-key, platform. Omit value for interactive input.')
+  .description('Set a configuration value. Valid keys: provider, api-key, platform, bitbucket-workspace, bitbucket-repo-slug, bitbucket-username, bitbucket-app-password. Omit value for interactive input.')
   .action(async (key: string, value?: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));
@@ -64,13 +71,12 @@ configCommand
               value: 'github',
             },
             {
-              name: chalk.hex(SECONDARY_COLOR)('🚧 GitLab - Coming soon'),
-              value: 'gitlab',
-              disabled: true,
+              name: `${chalk.hex(SUCCESS_COLOR)('✓')} Bitbucket - Available`,
+              value: 'bitbucket',
             },
             {
-              name: chalk.hex(SECONDARY_COLOR)('🚧 Bitbucket - Coming soon'),
-              value: 'bitbucket',
+              name: chalk.hex(SECONDARY_COLOR)('🚧 GitLab - Coming soon'),
+              value: 'gitlab',
               disabled: true,
             },
           ],
@@ -92,18 +98,45 @@ configCommand
       value = apiKey;
     }
 
+    // For bitbucket-app-password, require value
+    if (key === 'bitbucket-app-password' && !value) {
+      const { bbApiToken } = await inquirer.prompt([
+        {
+          type: 'password',
+          name: 'bbApiToken',
+          message: 'Enter your Bitbucket API Token:',
+          mask: '*',
+          validate: (input: string) => {
+            if (!input || input.trim().length === 0) {
+              return 'API Token is required';
+            }
+            return true;
+          },
+        },
+      ]);
+      value = bbApiToken;
+    }
+
     if (!value) {
       console.log(chalk.hex(ERROR_COLOR)('✗ Value is required'));
       process.exit(1);
     }
 
-    setConfig(key, value as never);
-    console.log(chalk.hex(SUCCESS_COLOR)(`✓ Set ${key} = ${key === 'api-key' ? '***' : value}`));
+    // Detect which config scope to update (update existing location, or default to global)
+    const existingScope = getConfigScope(key) || 'global';
+    setConfig(key, value as never, existingScope);
+
+    // Mask sensitive values for display (same format as config list)
+    let displayValue = value;
+    if (key === 'api-key' || key === 'bitbucket-app-password') {
+      displayValue = maskApiKey(value);
+    }
+    console.log(chalk.hex(SUCCESS_COLOR)(`✓ Set ${key} = ${displayValue}`));
   });
 
 configCommand
   .command('get <key>')
-  .description('Get a specific configuration value. Valid keys: provider, api-key, platform.')
+  .description('Get a specific configuration value. Valid keys: provider, api-key, platform, bitbucket-workspace, bitbucket-repo-slug, bitbucket-username, bitbucket-app-password.')
   .action((key: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));
@@ -123,12 +156,21 @@ configCommand
   .description('Display all current configuration settings (API keys are masked for security)')
   .action(() => {
     const config = listConfig();
+    const configInfo = getConfigInfo();
+
+    // Show config source
+    if (configInfo.activeSource === 'local') {
+      console.log(chalk.hex(SECONDARY_COLOR)(`Using config from: ${configInfo.localPath}\n`));
+    } else if (configInfo.activeSource === 'global') {
+      console.log(chalk.hex(SECONDARY_COLOR)(`Using config from: ${configInfo.globalPath}\n`));
+    }
+
     if (Object.keys(config).length === 0) {
-      console.log(chalk.hex(WARNING_COLOR)('No configuration found. Use "ai-review config set <key> <value>" to add settings.'));
+      console.log(chalk.hex(WARNING_COLOR)('No configuration found. Run "ai-review init" to set up.'));
     } else {
       console.log(chalk.bold('Current Configuration:'));
       for (const [key, value] of Object.entries(config)) {
-        const displayValue = key === 'api-key' && value ? maskApiKey(value) : value;
+        const displayValue = (key === 'api-key' || key === 'bitbucket-app-password') && value ? maskApiKey(value) : value;
         console.log(`  ${chalk.hex(HIGHLIGHT_COLOR)(key)}: ${displayValue}`);
       }
     }
@@ -145,7 +187,7 @@ function maskApiKey(key: string): string {
 
 configCommand
   .command('delete <key>')
-  .description('Remove a configuration value. Valid keys: provider, api-key, platform.')
+  .description('Remove a configuration value. Valid keys: provider, api-key, platform, bitbucket-workspace, bitbucket-repo-slug, bitbucket-username, bitbucket-app-password.')
   .action((key: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));

@@ -55,6 +55,40 @@ A CLI tool that performs AI-powered code reviews on pull requests from GitHub, G
   - Validate inputs before saving
   - ✅ **UX Improvement**: Auto-trigger this wizard on first `ai-review pr` run if config is missing
 
+#### 2.4 Hierarchical Configuration Resolution ✅
+- ✅ Implement git repository detection utility
+  - Walk up directory tree to find `.git` directory
+  - Return git repo root path
+- ✅ Implement local config support (`.ai-review/config.json` at repo root)
+  - Create `.ai-review/` directory in repository root
+  - Store project-specific configuration as JSON
+  - Load local config when inside git repository
+- ✅ Implement hierarchical resolution (local > global > defaults)
+  - Check git repo root for `.ai-review/config.json` first
+  - Fall back to global config at `~/.config/ai-code-review-nodejs/config.json` (Linux) or `~/Library/Preferences/ai-code-review-nodejs/config.json` (macOS)
+  - Use defaults if neither exists
+- ✅ Update `init` command for git-aware config creation
+  - Add `--global` / `-g` flag to force global config
+  - Default to local config when inside git repository
+  - Warn when creating local config outside git repo
+  - Show where config was saved after creation
+- ✅ Update `config list` to show active config source
+  - Display which config file is being used (local vs global)
+  - Merge and display effective configuration
+- ✅ Update config manager API
+  - Add `scope` parameter to `setConfig()` and `deleteConfig()`
+  - Add `getConfigInfo()` to query active config location
+  - Add `getLocalConfigPath()` and `getGlobalConfigPath()` helpers
+
+**Benefits:**
+- Isolated project configurations for different teams/clients
+- Different platforms per project (GitHub personal, Bitbucket work)
+- Global defaults with project-specific overrides
+- Works from any subdirectory within repository
+
+**Breaking Changes:**
+- None - config location is `~/.config/ai-code-review-nodejs/` (Linux) or `~/Library/Preferences/ai-code-review-nodejs/` (macOS)
+
 ---
 
 ### 3. AI Provider Abstraction Layer ✅
@@ -367,89 +401,152 @@ A CLI tool that performs AI-powered code reviews on pull requests from GitHub, G
 
 ---
 
-## Phase 2: GitLab Support 🚧
+## Phase 2: Essential Enhancements 🚧
 
-### 14. GitLab Integration 🚧
+**Priority features to remove barriers and improve core experience**
 
-#### 14.1 Detect GitLab CLI Availability 🚧
-- 🚧 Check if `glab` CLI is installed
-- 🚧 Verify `glab` CLI is authenticated
-- 🚧 Provide installation/authentication instructions
+**Foundation Complete:** ✅ Hierarchical config resolution (Phase 1) enables project-specific configurations. This infrastructure supports all Phase 2 enhancements that require per-project settings (Bitbucket workspaces, custom strictness, future guidelines).
 
-#### 14.2 Implement GitLab Platform Adapter 🚧
-- 🚧 Implement interface methods using `glab` CLI
-- 🚧 Map GitLab merge requests to PR model
-- 🚧 Handle GitLab-specific features (approval rules, etc.)
+### 13. Bitbucket API Integration 🚧
 
-#### 14.3 Test GitLab Integration 🚧
-- 🚧 Test on real GitLab repositories
-- 🚧 Verify comment posting works correctly
-- 🚧 Test with GitLab-specific edge cases
-
----
-
-## Phase 3: Bitbucket Support 🚧
-
-### 15. Bitbucket API Integration 🚧
-
-#### 15.1 Study Bitbucket API 🚧
+#### 13.1 Study Bitbucket API 🚧
 - 🚧 Review Bitbucket REST API documentation
 - 🚧 Understand authentication (app passwords, OAuth)
 - 🚧 Understand PR structure and diff format
 
-#### 15.2 Implement Bitbucket Platform Adapter 🚧
+#### 13.2 Implement Bitbucket Platform Adapter 🚧
 - 🚧 Implement direct API calls (no CLI available)
 - 🚧 Implement authentication handling
 - 🚧 Map Bitbucket pull requests to PR model
 - 🚧 Handle Bitbucket-specific features
 
-#### 15.3 Add Bitbucket Configuration 🚧
+#### 13.3 Add Bitbucket Configuration 🚧
 - 🚧 Add config fields for workspace and repository
 - 🚧 Add config field for Bitbucket app password
 - 🚧 Update configuration commands to support Bitbucket
 
-#### 15.4 Test Bitbucket Integration 🚧
+#### 13.4 Test Bitbucket Integration 🚧
 - 🚧 Test on real Bitbucket repositories
 - 🚧 Verify comment posting works correctly
 - 🚧 Handle Bitbucket Cloud vs Server differences if needed
 
 ---
 
+### 14. Review Strictness Levels 🚧
+
+**Allow users to control how strict/thorough the AI review is**
+
+#### 14.1 Design Strictness Levels 🚧
+- 🚧 Define levels:
+  - **Relaxed** - Only critical bugs, security vulnerabilities, broken functionality
+  - **Balanced** (default) - Bugs, security, performance issues, significant code quality problems
+  - **Strict** - Everything in Balanced + style inconsistencies, best practice violations, maintainability
+  - **Pedantic** - Ultra-strict including nitpicks, minor improvements, alternative approaches, edge cases
+
+#### 14.2 Implement Configuration 🚧
+- 🚧 Add `review-strictness` config option
+- 🚧 Add to config command: `ai-review config set review-strictness`
+- 🚧 Add to setup wizard with explanation of each level
+- 🚧 Default to "balanced" if not specified
+
+#### 14.3 Update AI Prompts 🚧
+- 🚧 Modify review prompt generation to include strictness instructions
+- 🚧 Tailor AI instructions based on selected level
+- 🚧 Test that AI respects the strictness guidance
+
+#### 14.4 Update Documentation 🚧
+- 🚧 Document strictness levels in README
+- 🚧 Add examples of what each level catches
+- 🚧 Update CLI help text
+
+---
+
+### 15. Free AI Provider 🚧
+
+**Add a free provider option to avoid paywall barrier for new users**
+
+#### 15.1 Research Free Options 🚧
+- 🚧 Evaluate options:
+  - Ollama (local, truly free, no API key)
+  - Groq (free tier, fast inference)
+  - Together.ai (free tier)
+  - Hugging Face Inference API (free tier)
+  - Other open-source model APIs
+
+#### 15.2 Implement Selected Provider 🚧
+- 🚧 Implement provider adapter for chosen free option
+- 🚧 Handle authentication (if required)
+- 🚧 Map API responses to review format
+- 🚧 Handle rate limits and quotas
+
+#### 15.3 Update Setup Wizard 🚧
+- 🚧 Add free provider to provider selection menu
+- 🚧 Show clearly that it's free (no API key/credits needed)
+- 🚧 Provide installation instructions if needed (e.g., Ollama setup)
+- 🚧 Set appropriate expectations for quality vs paid options
+
+#### 15.4 Update Documentation 🚧
+- 🚧 Document free provider setup in README
+- 🚧 Add comparison of free vs paid providers
+- 🚧 Update demo to work with free provider
+
+---
+
+## Phase 3: GitLab Support 🚧
+
+### 16. GitLab Integration 🚧
+
+#### 16.1 Detect GitLab CLI Availability 🚧
+- 🚧 Check if `glab` CLI is installed
+- 🚧 Verify `glab` CLI is authenticated
+- 🚧 Provide installation/authentication instructions
+
+#### 16.2 Implement GitLab Platform Adapter 🚧
+- 🚧 Implement interface methods using `glab` CLI
+- 🚧 Map GitLab merge requests to PR model
+- 🚧 Handle GitLab-specific features (approval rules, etc.)
+
+#### 16.3 Test GitLab Integration 🚧
+- 🚧 Test on real GitLab repositories
+- 🚧 Verify comment posting works correctly
+- 🚧 Test with GitLab-specific edge cases
+
+---
+
 ## Phase 4: Advanced Features (Future) 🚧
 
-### 16. Enhanced Review Capabilities 🚧
-- 🚧 Configurable review strictness levels (relaxed, balanced, strict, pedantic) to control how many comments AI generates
+### 17. Enhanced Review Capabilities 🚧
 - 🚧 Support for reviewing specific commits
 - 🚧 Support for reviewing local changes before pushing
 - 🚧 Support for comparing branches
 - 🚧 Custom review rules and guidelines per repository
 - 🚧 Integration with existing code quality tools
 
-### 17. Performance Optimizations 🚧
+### 18. Performance Optimizations 🚧
 - 🚧 Implement caching for large PRs
 - 🚧 Optimize diff parsing for very large changes
 - 🚧 Parallelize file reviews if possible
 - 🚧 Stream AI responses for real-time feedback
 
-### 18. Collaboration Features 🚧
+### 19. Collaboration Features 🚧
 - 🚧 Support for team review workflows
 - 🚧 Integration with Slack/Discord for notifications
 - 🚧 Review summary reports
 - 🚧 Analytics on review quality and frequency
 
-### 19. Additional AI Providers 🚧
+### 20. Additional AI Providers 🚧
 - 🚧 Implement OpenAI Provider (GPT-4, GPT-4-turbo)
 - 🚧 Implement Google Gemini Provider
 - 🚧 Add support for switching between providers dynamically
 
-### 20. Project-Specific Configuration 🚧
+### 21. Project-Specific Configuration 🚧
 - 🚧 Support for `.aireview` or `.ai-review.json` file in project root
 - 🚧 Project-specific review guidelines (coding standards, architecture patterns, security requirements)
 - 🚧 Interactive wizard to create project guidelines
 - 🚧 Merge project config with global config (project takes precedence)
 - 🚧 Include project guidelines in AI review prompts for context-aware reviews
 
-### 21. Testing Infrastructure 🚧
+### 22. Testing Infrastructure 🚧
 - 🚧 Unit tests for configuration management
 - 🚧 Unit tests for AI provider abstraction and implementations
 - 🚧 Unit tests for platform adapter interface

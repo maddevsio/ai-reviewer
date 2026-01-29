@@ -2,8 +2,9 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { platform } from 'os';
-import { setConfig, listConfig } from '../config/manager';
-import { SUCCESS_COLOR, INFO_COLOR, SECONDARY_COLOR, HIGHLIGHT_COLOR } from '../utils/colors';
+import { setConfig, listConfig, getConfigInfo } from '../config/manager';
+import { SUCCESS_COLOR, INFO_COLOR, SECONDARY_COLOR, HIGHLIGHT_COLOR, WARNING_COLOR } from '../utils/colors';
+import { findGitRepoRoot } from '../utils/git';
 
 function getGitHubCLIInstallCommand(): string {
   const os = platform();
@@ -20,10 +21,52 @@ function getGitHubCLIInstallCommand(): string {
   }
 }
 
+interface InitOptions {
+  global?: boolean;
+}
+
 export const initCommand = new Command('init')
   .description('Interactive setup wizard for first-time configuration')
-  .action(async () => {
+  .option('-g, --global', 'Create global configuration (default: local if in git repo)')
+  .action(async (options: InitOptions) => {
     console.log(chalk.bold.hex(INFO_COLOR)('\n🚀 Welcome to AI Code Reviewer!\n'));
+
+    // Determine config scope
+    const repoRoot = findGitRepoRoot();
+    const isInGitRepo = repoRoot !== null;
+    let configScope: 'global' | 'local';
+
+    if (options.global) {
+      // Explicit global flag
+      configScope = 'global';
+      console.log(chalk.hex(INFO_COLOR)('Configuring: Global (user-wide)\n'));
+    } else if (isInGitRepo) {
+      // In git repo: default to local
+      configScope = 'local';
+      console.log(chalk.hex(INFO_COLOR)(`Configuring: Local project (${repoRoot}/.ai-review/)\n`));
+    } else {
+      // Not in git repo: warn and ask
+      console.log(chalk.hex(WARNING_COLOR)('⚠️  Warning: Not a git repository'));
+      console.log(chalk.hex(WARNING_COLOR)(`Local config will only apply when running commands from ${process.cwd()}/`));
+      console.log(chalk.hex(WARNING_COLOR)('If you have git repos inside this directory, they will NOT use this config.\n'));
+
+      const { proceed } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'proceed',
+          message: 'Create local config anyway?',
+          default: false,
+        },
+      ]);
+
+      if (!proceed) {
+        console.log(chalk.hex(INFO_COLOR)('\nCreating global configuration instead...\n'));
+        configScope = 'global';
+      } else {
+        configScope = 'local';
+      }
+    }
+
     console.log(chalk.hex(SECONDARY_COLOR)('Let\'s set up your configuration...\n'));
 
     // Step 1: AI Provider
@@ -51,7 +94,7 @@ export const initCommand = new Command('init')
       },
     ]);
 
-    setConfig('provider', provider as never);
+    setConfig('provider', provider as never, configScope);
     console.log(chalk.hex(SUCCESS_COLOR)(`✓ Provider set to: ${provider}\n`));
 
     // Step 2: API Key
@@ -76,7 +119,7 @@ export const initCommand = new Command('init')
       },
     ]);
 
-    setConfig('api-key', apiKey as never);
+    setConfig('api-key', apiKey as never, configScope);
     console.log(chalk.hex(SUCCESS_COLOR)('✓ API key saved\n'));
 
     // Step 3: Platform
@@ -91,38 +134,118 @@ export const initCommand = new Command('init')
             value: 'github',
           },
           {
-            name: chalk.hex(SECONDARY_COLOR)('🚧 GitLab - Coming soon'),
-            value: 'gitlab',
-            disabled: true,
+            name: `${chalk.hex(SUCCESS_COLOR)('✓')} Bitbucket - Available`,
+            value: 'bitbucket',
           },
           {
-            name: chalk.hex(SECONDARY_COLOR)('🚧 Bitbucket - Coming soon'),
-            value: 'bitbucket',
+            name: chalk.hex(SECONDARY_COLOR)('🚧 GitLab - Coming soon'),
+            value: 'gitlab',
             disabled: true,
           },
         ],
       },
     ]);
 
-    setConfig('platform', gitPlatform as never);
+    setConfig('platform', gitPlatform as never, configScope);
     console.log(chalk.hex(SUCCESS_COLOR)(`✓ Platform set to: ${gitPlatform}\n`));
+
+    // Step 4: Bitbucket-specific configuration
+    if (gitPlatform === 'bitbucket') {
+      console.log(chalk.hex(INFO_COLOR)('Bitbucket requires additional configuration:\n'));
+
+      const { workspace } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'workspace',
+          message: 'Enter your Bitbucket workspace (e.g., "mycompany"):',
+          validate: (input: string) => {
+            if (!input || input.trim().length === 0) {
+              return 'Workspace is required';
+            }
+            return true;
+          },
+        },
+      ]);
+
+      setConfig('bitbucket-workspace', workspace as never, configScope);
+      console.log(chalk.hex(SUCCESS_COLOR)(`✓ Workspace set to: ${workspace}\n`));
+
+      const { repoSlug } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'repoSlug',
+          message: 'Enter your repository slug (e.g., "my-repo"):',
+          validate: (input: string) => {
+            if (!input || input.trim().length === 0) {
+              return 'Repository slug is required';
+            }
+            return true;
+          },
+        },
+      ]);
+
+      setConfig('bitbucket-repo-slug', repoSlug as never, configScope);
+      console.log(chalk.hex(SUCCESS_COLOR)(`✓ Repository slug set to: ${repoSlug}\n`));
+
+      const { bbApiToken } = await inquirer.prompt([
+        {
+          type: 'password',
+          name: 'bbApiToken',
+          message: 'Enter your Bitbucket API Token:',
+          mask: '*',
+          validate: (input: string) => {
+            if (!input || input.trim().length === 0) {
+              return 'API Token is required';
+            }
+            return true;
+          },
+        },
+      ]);
+
+      setConfig('bitbucket-app-password', bbApiToken as never, configScope);
+      console.log(chalk.hex(SUCCESS_COLOR)('✓ Bitbucket API Token saved\n'));
+
+      // Info about API tokens
+      console.log(chalk.hex(INFO_COLOR)('ℹ️  API Token permissions required:'));
+      console.log(chalk.hex(INFO_COLOR)('   - Repositories: Read, Write'));
+      console.log(chalk.hex(INFO_COLOR)('   - Pull requests: Read, Write'));
+      console.log(chalk.hex(INFO_COLOR)('   Create at: https://bitbucket.org/account/settings/api-tokens/\n'));
+    }
 
     // Summary
     console.log(chalk.bold.hex(SUCCESS_COLOR)('✨ Configuration complete!\n'));
+
+    // Show where config was saved
+    const configInfo = getConfigInfo();
+    if (configScope === 'local' && configInfo.localPath) {
+      console.log(chalk.hex(INFO_COLOR)(`Saved to: ${configInfo.localPath}\n`));
+    } else {
+      console.log(chalk.hex(INFO_COLOR)(`Saved to: ${configInfo.globalPath}\n`));
+    }
+
     console.log(chalk.bold('Your configuration:'));
     const config = listConfig();
     for (const [key, value] of Object.entries(config)) {
-      const displayValue = key === 'api-key' && value
+      const displayValue = (key === 'api-key' || key === 'bitbucket-app-password') && value
         ? `${value.slice(0, 8)}...${value.slice(-4)}`
         : value;
       console.log(`  ${chalk.hex(HIGHLIGHT_COLOR)(key)}: ${displayValue}`);
     }
 
-    const installCommand = getGitHubCLIInstallCommand();
-
     console.log(chalk.hex(SECONDARY_COLOR)('\n💡 Next steps:'));
-    console.log(chalk.hex(SECONDARY_COLOR)(`   1. Make sure you have GitHub CLI installed: ${installCommand}`));
-    console.log(chalk.hex(SECONDARY_COLOR)('   2. Authenticate with GitHub: gh auth login'));
-    console.log(chalk.hex(SECONDARY_COLOR)('   3. Navigate to a repo with PRs'));
-    console.log(chalk.hex(SECONDARY_COLOR)('   4. Run: ai-review pr\n'));
+
+    if (gitPlatform === 'github') {
+      const installCommand = getGitHubCLIInstallCommand();
+      console.log(chalk.hex(SECONDARY_COLOR)(`   1. Make sure you have GitHub CLI installed: ${installCommand}`));
+      console.log(chalk.hex(SECONDARY_COLOR)('   2. Authenticate with GitHub: gh auth login'));
+      console.log(chalk.hex(SECONDARY_COLOR)('   3. Navigate to a repo with PRs'));
+      console.log(chalk.hex(SECONDARY_COLOR)('   4. Run: ai-review pr\n'));
+    } else if (gitPlatform === 'bitbucket') {
+      console.log(chalk.hex(SECONDARY_COLOR)('   1. Your API Token must have the following permissions:'));
+      console.log(chalk.hex(SECONDARY_COLOR)('      - Repositories: Read, Write'));
+      console.log(chalk.hex(SECONDARY_COLOR)('      - Pull requests: Read, Write'));
+      console.log(chalk.hex(SECONDARY_COLOR)('   2. Create API Token at: https://bitbucket.org/account/settings/api-tokens/'));
+      console.log(chalk.hex(SECONDARY_COLOR)('   3. Navigate to a repo with PRs'));
+      console.log(chalk.hex(SECONDARY_COLOR)('   4. Run: ai-review pr\n'));
+    }
   });

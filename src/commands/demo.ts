@@ -2,24 +2,20 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import ora from 'ora';
-import { parseDiff, getCodeContext } from '../utils/diff-parser';
+import { parseDiff } from '../utils/diff-parser';
 import { formatDistanceToNow } from '../utils/date';
-import { INFO_COLOR, SUCCESS_COLOR, WARNING_COLOR, SECONDARY_COLOR, ERROR_COLOR } from '../utils/colors';
-import { askYesNo, askConfirmation } from '../utils/prompts';
-import { displayCodeContext } from '../utils/code-display';
+import { INFO_COLOR, SUCCESS_COLOR, SECONDARY_COLOR, ERROR_COLOR } from '../utils/colors';
+import {
+  reviewCommentsInteractively,
+  askPostCommentsDecision,
+  askPRApprovalDecision,
+  handlePRApprovalWorkflow,
+  ReviewComment,
+} from '../utils/review-workflow';
 
 interface ReviewOptions {
   post?: boolean;
   dryRun?: boolean;
-}
-
-interface ReviewComment {
-  file: string;
-  line: number;
-  startLine?: number;
-  comment: string;
-  originalCode?: string;
-  suggestedCode?: string;
 }
 
 // Mock PR data
@@ -157,174 +153,56 @@ export const demoCommand = new Command('demo')
 
     console.log(chalk.hex(SUCCESS_COLOR)(`\n✓ Found ${comments.length} suggestion(s)\n`));
 
-    // Review each comment
-    const acceptedComments: ReviewComment[] = [];
+    // Review each comment interactively
+    const { acceptedComments, cancelled } = await reviewCommentsInteractively(
+      comments as ReviewComment[],
+      parsedDiff,
+      options
+    );
 
-    for (let i = 0; i < comments.length; i++) {
-      const comment = comments[i];
-
-      const lineRange = comment.startLine
-        ? `${comment.startLine}-${comment.line}`
-        : `${comment.line}`;
-      console.log(chalk.bold(`\n[${i + 1}/${comments.length}] ${comment.file}:${lineRange}`));
-
-      // Show code context
-      if (comment.line) {
-        const targetLine = comment.startLine || comment.line;
-        const codeContext = getCodeContext(parsedDiff, comment.file, targetLine, 3);
-        if (codeContext.length > 0) {
-          // Calculate starting line number (approximate)
-          let startLineNum = targetLine - 3;
-          if (startLineNum < 1) startLineNum = 1;
-
-          displayCodeContext(codeContext, startLineNum);
-        }
-      }
-
-      console.log(chalk.hex(SECONDARY_COLOR)('AI Comment:'), comment.comment);
-      console.log();
-
-      const { action } = await inquirer.prompt([
-        {
-          type: 'list',
-          name: 'action',
-          message: 'What would you like to do?',
-          choices: [
-            { name: 'Accept comment', value: 'accept' },
-            { name: 'Edit comment', value: 'edit' },
-            { name: 'Skip this comment', value: 'skip' },
-            { name: 'Quit review', value: 'quit' },
-          ],
-        },
-      ]);
-
-      if (action === 'quit') {
-        console.log(chalk.hex(INFO_COLOR)('\nReview cancelled'));
-        return;
-      } else if (action === 'accept') {
-        acceptedComments.push(comment as ReviewComment);
-        console.log(chalk.hex(SUCCESS_COLOR)('✓ Comment accepted'));
-      } else if (action === 'edit') {
-        const { editedComment } = await inquirer.prompt([
-          {
-            type: 'input',
-            name: 'editedComment',
-            message: 'Edit comment:',
-            default: comment.comment,
-          },
-        ]);
-        acceptedComments.push({ ...comment, comment: editedComment } as ReviewComment);
-        console.log(chalk.hex(SUCCESS_COLOR)('✓ Comment updated'));
-      } else if (action === 'skip') {
-        console.log(chalk.hex(WARNING_COLOR)('⊘ Comment skipped'));
-      }
-    }
-
-    // Post comments simulation
-    if (acceptedComments.length === 0) {
-      console.log(chalk.hex(WARNING_COLOR)('\nNo comments to post'));
+    if (cancelled) {
       return;
     }
 
-    console.log(chalk.bold(`\n${acceptedComments.length} comment(s) ready to post`));
+    // Ask user if they want to post comments
+    const { hasPendingComments } = await askPostCommentsDecision(acceptedComments, id!, options);
 
-    let hasPendingComments = false;
-
-    if (options.dryRun) {
-      console.log(chalk.hex(WARNING_COLOR)('\n⚠ Dry run mode - comments not posted'));
-      console.log('\nComments that would be posted:');
-      acceptedComments.forEach((c, i) => {
-        console.log(chalk.hex(SECONDARY_COLOR)(`${i + 1}. ${c.file}: ${c.comment}`));
-      });
+    // Exit early if dry-run or no comments to post
+    if (options.dryRun || !hasPendingComments) {
       return;
-    } else if (options.post) {
-      console.log(chalk.hex(INFO_COLOR)(`\nPending ${acceptedComments.length} comment(s) to PR #${id}`));
-      hasPendingComments = true;
-    } else {
-      const shouldPost = await askYesNo(`Post ${acceptedComments.length} comment(s) to PR #${id}?`);
-
-      if (shouldPost) {
-        console.log(chalk.hex(INFO_COLOR)(`\nPending ${acceptedComments.length} comment(s) to PR #${id}`));
-        hasPendingComments = true;
-      } else {
-        console.log(chalk.hex(SECONDARY_COLOR)('\nComments not posted'));
-      }
     }
 
-    // PR Review workflow - conditional menu based on pending comments
-    if (!options.dryRun) {
-      // With --post flag, only show approve/skip (automated flow)
-      // Otherwise, show full menu when comments are pending
-      const menuChoices = options.post
-        ? [
-            { name: 'Approve PR', value: 'approve' },
-            { name: 'Skip (do nothing)', value: 'skip' },
-          ]
-        : hasPendingComments
-        ? [
-            { name: 'Approve PR', value: 'approve' },
-            { name: 'Request changes', value: 'request_changes' },
-            { name: 'Comment only (no approval status)', value: 'comment' },
-            { name: 'Skip (do nothing)', value: 'skip' },
-          ]
-        : [
-            { name: 'Approve PR', value: 'approve' },
-            { name: 'Skip (do nothing)', value: 'skip' },
-          ];
+    // PR Review workflow (demo simulation)
+    const decision = await askPRApprovalDecision(hasPendingComments, options);
 
-      const { reviewAction } = await inquirer.prompt([
-        {
-          type: 'list',
-          name: 'reviewAction',
-          message: 'What would you like to do with this PR?',
-          choices: menuChoices,
-        },
-      ]);
-
-      if (reviewAction === 'approve') {
-        const confirmed = await askConfirmation('⚠️  Are you sure you want to APPROVE this PR?');
-
-        if (confirmed) {
+    await handlePRApprovalWorkflow(
+      decision,
+      {
+        onApprove: async () => {
           let spinner = ora('Submitting PR approval...').start();
           await new Promise((resolve) => setTimeout(resolve, 800));
           spinner.succeed(chalk.hex(SECONDARY_COLOR)(`(Demo) `) + chalk.hex(SUCCESS_COLOR)(`PR #${id} approved ✓`));
-        } else {
-          console.log(chalk.hex(SECONDARY_COLOR)('\nApproval cancelled'));
-        }
-      } else if (reviewAction === 'request_changes') {
-        // Prompt for body message (required by GitHub)
-        const { reviewBody } = await inquirer.prompt([
-          {
-            type: 'input',
-            name: 'reviewBody',
-            message: 'Summary message for the change request:',
-            default: 'Please address the issues mentioned in the review comments.',
-            validate: (input: string) => input.trim().length > 0 || 'Message cannot be empty',
-          },
-        ]);
-
-        const confirmed = await askConfirmation('⚠️  Are you sure you want to REQUEST CHANGES for this PR?');
-
-        if (confirmed) {
+        },
+        onRequestChanges: async (_body: string) => {
           let spinner = ora('Submitting change request...').start();
           await new Promise((resolve) => setTimeout(resolve, 800));
           spinner.succeed(chalk.hex(SECONDARY_COLOR)(`(Demo) `) + chalk.hex(SUCCESS_COLOR)(`Changes requested for PR #${id}`));
-        } else {
-          console.log(chalk.hex(SECONDARY_COLOR)('\nChange request cancelled'));
-        }
-      } else if (reviewAction === 'comment') {
-        let spinner = ora('Submitting review comments...').start();
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        spinner.succeed(chalk.hex(SECONDARY_COLOR)(`(Demo) `) + chalk.hex(SUCCESS_COLOR)(`Review submitted as comments only`));
-      } else {
-        // Skip - but if --post was used and there are comments, post them
-        if (options.post && hasPendingComments) {
-          let spinner = ora('Posting review comments...').start();
+        },
+        onComment: async () => {
+          let spinner = ora('Submitting review comments...').start();
           await new Promise((resolve) => setTimeout(resolve, 800));
-          spinner.succeed(chalk.hex(SECONDARY_COLOR)(`(Demo) `) + `Posted ${acceptedComments.length} comment(s) to PR #${id}`);
-        } else {
-          console.log(chalk.hex(SECONDARY_COLOR)('\nNo review action taken'));
-        }
+          spinner.succeed(chalk.hex(SECONDARY_COLOR)(`(Demo) `) + chalk.hex(SUCCESS_COLOR)(`Review submitted as comments only`));
+        },
+        onSkip: async () => {
+          // Skip - but if --post was used and there are comments, post them
+          if (options.post && hasPendingComments) {
+            let spinner = ora('Posting review comments...').start();
+            await new Promise((resolve) => setTimeout(resolve, 800));
+            spinner.succeed(chalk.hex(SECONDARY_COLOR)(`(Demo) `) + `Posted ${acceptedComments.length} comment(s) to PR #${id}`);
+          } else {
+            console.log(chalk.hex(SECONDARY_COLOR)('\nNo review action taken'));
+          }
+        },
       }
-    }
+    );
   });

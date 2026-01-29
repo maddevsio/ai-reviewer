@@ -61,10 +61,14 @@ Install GitHub CLI:
 ```bash
 # macOS
 brew install gh
+```
 
+```bash
 # Linux (Debian/Ubuntu)
 sudo apt install gh
+```
 
+```bash
 # Windows
 winget install --id GitHub.cli
 ```

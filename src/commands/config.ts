@@ -8,6 +8,7 @@ const VALID_KEYS: Array<keyof ConfigSchema> = [
   'provider',
   'api-key',
   'platform',
+  'google-model',
   'bitbucket-workspace',
   'bitbucket-repo-slug',
   'bitbucket-app-password',
@@ -22,7 +23,7 @@ export const configCommand = new Command('config')
 
 configCommand
   .command('set <key> [value]')
-  .description('Set a configuration value. Valid keys: provider, api-key, platform, bitbucket-workspace, bitbucket-repo-slug, bitbucket-username, bitbucket-app-password. Omit value for interactive input.')
+  .description('Set a configuration value. Valid keys: provider, api-key, platform, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-username, bitbucket-app-password. Omit value for interactive input.')
   .action(async (key: string, value?: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));
@@ -43,13 +44,12 @@ configCommand
               value: 'anthropic',
             },
             {
-              name: chalk.hex(SECONDARY_COLOR)('🚧 OpenAI (GPT) - Coming soon'),
-              value: 'openai',
-              disabled: true,
+              name: `${chalk.hex(SUCCESS_COLOR)('✓')} Google (Gemini) - Available (Free tier)`,
+              value: 'google',
             },
             {
-              name: chalk.hex(SECONDARY_COLOR)('🚧 Google (Gemini) - Coming soon'),
-              value: 'google',
+              name: chalk.hex(SECONDARY_COLOR)('🚧 OpenAI (GPT) - Coming soon'),
+              value: 'openai',
               disabled: true,
             },
           ],
@@ -83,6 +83,28 @@ configCommand
         },
       ]);
       value = selectedPlatform;
+    }
+
+    // Interactive Google model selection
+    if (key === 'google-model' && !value) {
+      const { selectedModel } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'selectedModel',
+          message: 'Select Google Gemini model:',
+          choices: [
+            {
+              name: 'Gemini 3 Flash (Most balanced model)',
+              value: 'gemini-3-flash-preview',
+            },
+            {
+              name: 'Gemini 2.5 Flash (Best model in terms of price-performance)',
+              value: 'gemini-2.5-flash',
+            },
+          ],
+        },
+      ]);
+      value = selectedModel;
     }
 
     // For api-key, require value
@@ -136,7 +158,7 @@ configCommand
 
 configCommand
   .command('get <key>')
-  .description('Get a specific configuration value. Valid keys: provider, api-key, platform, bitbucket-workspace, bitbucket-repo-slug, bitbucket-username, bitbucket-app-password.')
+  .description('Get a specific configuration value. Valid keys: provider, api-key, platform, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-username, bitbucket-app-password.')
   .action((key: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));
@@ -187,7 +209,7 @@ function maskApiKey(key: string): string {
 
 configCommand
   .command('delete <key>')
-  .description('Remove a configuration value. Valid keys: provider, api-key, platform, bitbucket-workspace, bitbucket-repo-slug, bitbucket-username, bitbucket-app-password.')
+  .description('Remove a configuration value. Valid keys: provider, api-key, platform, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-username, bitbucket-app-password.')
   .action((key: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));

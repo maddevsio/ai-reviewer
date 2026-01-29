@@ -81,13 +81,12 @@ export const initCommand = new Command('init')
             value: 'anthropic',
           },
           {
-            name: chalk.hex(SECONDARY_COLOR)('🚧 OpenAI (GPT) - Coming soon'),
-            value: 'openai',
-            disabled: true,
+            name: `${chalk.hex(SUCCESS_COLOR)('✓')} Google (Gemini) - Available (Free tier)`,
+            value: 'google',
           },
           {
-            name: chalk.hex(SECONDARY_COLOR)('🚧 Google (Gemini) - Coming soon'),
-            value: 'google',
+            name: chalk.hex(SECONDARY_COLOR)('🚧 OpenAI (GPT) - Coming soon'),
+            value: 'openai',
             disabled: true,
           },
         ],
@@ -98,11 +97,12 @@ export const initCommand = new Command('init')
     console.log(chalk.hex(SUCCESS_COLOR)(`✓ Provider set to: ${provider}\n`));
 
     // Step 2: API Key
+    const providerName = provider === 'anthropic' ? 'Anthropic' : provider === 'google' ? 'Google' : provider;
     const { apiKey } = await inquirer.prompt([
       {
         type: 'password',
         name: 'apiKey',
-        message: `Enter your ${provider === 'anthropic' ? 'Anthropic' : provider} API key:`,
+        message: `Enter your ${providerName} API key:`,
         mask: '*',
         validate: (input: string) => {
           if (!input || input.trim().length === 0) {
@@ -110,6 +110,9 @@ export const initCommand = new Command('init')
           }
           if (provider === 'anthropic' && !input.startsWith('sk-ant-')) {
             return 'Anthropic API keys should start with "sk-ant-"';
+          }
+          if (provider === 'google' && !input.startsWith('AIza')) {
+            return 'Google API keys should start with "AIza"';
           }
           if (provider === 'openai' && !input.startsWith('sk-')) {
             return 'OpenAI API keys should start with "sk-"';
@@ -149,7 +152,33 @@ export const initCommand = new Command('init')
     setConfig('platform', gitPlatform as never, configScope);
     console.log(chalk.hex(SUCCESS_COLOR)(`✓ Platform set to: ${gitPlatform}\n`));
 
-    // Step 4: Bitbucket-specific configuration
+    // Step 4: Google-specific configuration
+    if (provider === 'google') {
+      console.log(chalk.hex(INFO_COLOR)('Google Gemini model selection:\n'));
+
+      const { googleModel } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'googleModel',
+          message: 'Select Google Gemini model:',
+          choices: [
+            {
+              name: 'Gemini 3 Flash (Most balanced model)',
+              value: 'gemini-3-flash-preview',
+            },
+            {
+              name: 'Gemini 2.5 Flash (Best model in terms of price-performance)',
+              value: 'gemini-2.5-flash',
+            },
+          ],
+        },
+      ]);
+
+      setConfig('google-model', googleModel as never, configScope);
+      console.log(chalk.hex(SUCCESS_COLOR)(`✓ Model set to: ${googleModel}\n`));
+    }
+
+    // Step 5: Bitbucket-specific configuration
     if (gitPlatform === 'bitbucket') {
       console.log(chalk.hex(INFO_COLOR)('Bitbucket requires additional configuration:\n'));
 

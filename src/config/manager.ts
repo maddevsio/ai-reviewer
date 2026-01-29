@@ -10,6 +10,8 @@ export interface ConfigSchema {
   provider?: AIProvider;
   'api-key'?: string;
   platform?: Platform;
+  // Google-specific fields
+  'google-model'?: string;
   // Bitbucket-specific fields
   'bitbucket-workspace'?: string;
   'bitbucket-repo-slug'?: string;

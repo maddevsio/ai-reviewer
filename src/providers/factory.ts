@@ -1,5 +1,6 @@
 import { AIProvider } from './base';
 import { AnthropicProvider } from './anthropic';
+import { GoogleProvider } from './google';
 import { getConfig } from '../config/manager';
 
 export function createAIProvider(): AIProvider {
@@ -22,7 +23,8 @@ export function createAIProvider(): AIProvider {
       throw new Error('OpenAI provider not yet implemented');
 
     case 'google':
-      throw new Error('Google provider not yet implemented');
+      const googleModel = getConfig('google-model');
+      return new GoogleProvider(apiKey, googleModel);
 
     default:
       throw new Error(`Unknown provider: ${provider}`);

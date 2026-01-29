@@ -53,6 +53,16 @@ This interactive wizard will guide you through:
 - Create a new API key
 - Copy and paste it into the setup wizard
 
+**Google (Gemini) - Free Tier:**
+- Visit https://aistudio.google.com/
+- Click "Get API key" in the menu
+- Create a new API key (no credit card required)
+- Copy and paste it into the setup wizard
+- Select your preferred model:
+  - **Gemini 3 Flash** - Most balanced model
+  - **Gemini 2.5 Flash** - Best model in terms of price-performance (default)
+- **Note:** Free tier has rate limits (requests per minute/day and tokens per minute)
+
 ### 3. Platform-Specific Setup
 
 **For GitHub:**
@@ -135,6 +145,11 @@ ai-review config set api-key
 **Set git platform (interactive):**
 ```bash
 ai-review config set platform
+```
+
+**Set Google Gemini model (interactive):**
+```bash
+ai-review config set google-model
 ```
 
 **Get specific value:**
@@ -243,7 +258,9 @@ All comments and approval status are submitted together in a single GitHub revie
 ## Requirements
 
 - **Node.js** 18 or higher
-- **Anthropic API Key** with sufficient credits
+- **AI Provider API Key**:
+  - **Anthropic (Claude)**: Paid API key with credits
+  - **Google (Gemini)**: Free API key (subject to rate limits)
 - **For GitHub**: GitHub CLI (`gh`) installed and authenticated
 - **For Bitbucket**: API Token with Repositories and Pull requests permissions
 
@@ -309,10 +326,14 @@ gh auth status
 
 ### API Rate Limiting
 
-**Solution:** The tool uses the Anthropic API which has rate limits. If you hit limits:
+**Anthropic (Claude):** Rate limits depend on your API plan tier.
+
+**Google (Gemini):** Free tier has rate limits on requests per minute/day and tokens per minute.
+
+**Solution:** If you hit rate limits:
 - Wait a few minutes before retrying
-- Check your API key limits in the Anthropic console
-- Consider upgrading your API plan for higher limits
+- For Google: Consider spacing out reviews or upgrading to paid tier for higher limits
+- For Anthropic: Check your API key limits in the console or upgrade your plan
 
 ### "Cannot review own PR"
 
@@ -360,7 +381,10 @@ You can review and post comments on your own PRs, but GitHub prevents you from a
 
 ### What AI models are supported?
 
-Currently, only Claude (Anthropic) is supported. A **free AI provider** (no API key or credits required) is coming soon in Phase 2 to remove the paywall barrier. OpenAI GPT-4 and Google Gemini support is planned for future releases.
+**Anthropic (Claude)** - Fully supported (requires paid API key)
+**Google (Gemini)** - Fully supported with **free tier** (no credit card required)
+
+OpenAI GPT-4 support is planned for future releases.
 
 ### What git platforms are supported?
 
@@ -376,11 +400,16 @@ Currently, only Claude (Anthropic) is supported. A **free AI provider** (no API 
 
 ### How much does it cost?
 
-The tool is free, but you need an Anthropic API key. API usage costs depend on:
-- PR size (number of lines changed)
-- Claude model used (defaults to Claude Sonnet 4.5)
+The tool is free. API costs depend on your provider choice:
 
-Typical cost per review: $0.01-0.10 depending on PR size.
+**Google (Gemini)** - Free tier available (no credit card required)
+- Choose between gemini-3-flash-preview or gemini-2.5-flash (default)
+- Subject to rate limits on free tier (requests per minute/day, tokens per minute)
+- Suitable for testing and small teams with occasional reviews
+
+**Anthropic (Claude)** - Paid API key required
+- Defaults to Claude Sonnet 4.5
+- Typical cost per review: $0.01-0.10 depending on PR size
 
 ### Where is my configuration stored?
 
@@ -430,8 +459,9 @@ The tool works with any programming language. Claude AI can review code in most 
 - ✅ Hierarchical config resolution (local project overrides global)
 - ✅ Git-aware config detection (auto-finds repo root)
 - ✅ GitHub integration via `gh` CLI and Octokit API
-- ✅ Bitbucket integration via REST API (app passwords)
+- ✅ Bitbucket integration via REST API (API Tokens with Bearer auth)
 - ✅ Anthropic (Claude) AI provider
+- ✅ Google (Gemini) AI provider with free tier
 - ✅ Full review workflow with interactive comment management
 - ✅ Inline comment posting with line numbers
 - ✅ PR approval/request changes workflow
@@ -439,13 +469,12 @@ The tool works with any programming language. Claude AI can review code in most 
 - ✅ Comprehensive CLI help
 
 **Coming Next (Phase 2):**
-- Free AI provider (no registration/credits required)
 - Configurable review strictness levels (relaxed, balanced, strict, pedantic)
 - Bitbucket OAuth 2.0 support (before June 2026 deadline)
 
 **Future Plans:**
 - GitLab support
-- Additional AI providers (OpenAI GPT-4, Google Gemini)
+- OpenAI GPT-4 provider
 - Project-specific review guidelines (`.aireview` file)
 
 ## Development Setup

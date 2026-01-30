@@ -7,6 +7,7 @@ import { SUCCESS_COLOR, WARNING_COLOR, ERROR_COLOR, SECONDARY_COLOR } from '../u
 import { askYesNo } from '../utils/prompts';
 import { isValidStrictness } from '../utils/strictness';
 import type { ReviewStrictness } from '../config/manager';
+import { enableVerboseLogging } from '../utils/logger';
 
 export const prCommand = new Command('pr')
   .description('Review pull requests with AI assistance')
@@ -22,8 +23,24 @@ export const prCommand = new Command('pr')
     '                            strict   - Ultra-Violence (strict quality)\n' +
     '                            pedantic - Watch Them Die (everything)'
   )
-  .action(async (id: string | undefined, options: { post?: boolean; dryRun?: boolean; strictness?: string }) => {
+  .option(
+    '-v, --verbose [categories]',
+    'Enable verbose logging. Optionally specify categories (comma-separated):\n' +
+    '                            api          - API requests and responses (basic)\n' +
+    '                            api-detailed - Full API details (URLs, headers, payloads, bodies)\n' +
+    '                            config       - Configuration loading and resolution\n' +
+    '                            prompt       - AI prompt construction\n' +
+    '                            diff         - Diff parsing details\n' +
+    '                            platform     - Platform operations (GitHub/Bitbucket)\n' +
+    '                            (omit value to enable all categories)'
+  )
+  .action(async (id: string | undefined, options: { post?: boolean; dryRun?: boolean; strictness?: string; verbose?: string | boolean }) => {
     try {
+      // Enable verbose logging if requested
+      if (options.verbose !== undefined) {
+        enableVerboseLogging(options.verbose);
+      }
+
       // Check if configuration exists
       const hasProvider = hasConfig('provider');
       const hasApiKey = hasConfig('api-key');

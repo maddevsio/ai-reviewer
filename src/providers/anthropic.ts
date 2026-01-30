@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { BaseAIProvider } from './base';
+import { logger } from '../utils/logger';
 
 export class AnthropicProvider extends BaseAIProvider {
   private client: Anthropic;
@@ -13,6 +14,8 @@ export class AnthropicProvider extends BaseAIProvider {
 
   async sendPrompt(prompt: string, context?: Record<string, any>): Promise<string> {
     try {
+      logger.logApiRequest('Anthropic', this.model, { promptLength: prompt.length });
+
       const response = await this.client.messages.create({
         model: this.model,
         max_tokens: 4096,
@@ -23,6 +26,9 @@ export class AnthropicProvider extends BaseAIProvider {
           },
         ],
       });
+
+      logger.logApiResponse('Anthropic', 200, JSON.stringify(response).length);
+      logger.log('api', `Tokens: input=${response.usage.input_tokens}, output=${response.usage.output_tokens}`);
 
       // Extract text from response
       const textContent = response.content.find((block) => block.type === 'text');

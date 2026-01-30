@@ -2,6 +2,7 @@ import Conf from 'conf';
 import * as fs from 'fs';
 import * as path from 'path';
 import { findGitRepoRoot } from '../utils/git';
+import { logger } from '../utils/logger';
 
 export type AIProvider = 'anthropic' | 'openai' | 'google';
 export type Platform = 'github' | 'gitlab' | 'bitbucket';
@@ -74,7 +75,9 @@ function loadLocalConfig(): ConfigSchema {
 
   try {
     const content = fs.readFileSync(localConfigPath, 'utf-8');
-    return JSON.parse(content);
+    const config = JSON.parse(content);
+    logger.logConfigLoad('local', localConfigPath, Object.keys(config));
+    return config;
   } catch (error) {
     console.warn(`Warning: Failed to parse local config at ${localConfigPath}`);
     return {};
@@ -108,11 +111,18 @@ export function getConfig<K extends keyof ConfigSchema>(key: K): ConfigSchema[K]
   // Check local config first
   const localConfig = loadLocalConfig();
   if (localConfig[key] !== undefined) {
+    logger.log('config', `Resolved '${key}' from local config`);
     return localConfig[key];
   }
 
   // Fall back to global config
-  return globalConfig.get(key);
+  const value = globalConfig.get(key);
+  if (value !== undefined) {
+    logger.log('config', `Resolved '${key}' from global config (${globalConfig.path})`);
+  } else {
+    logger.log('config', `Key '${key}' not found in any config`);
+  }
+  return value;
 }
 
 /**

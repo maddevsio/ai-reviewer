@@ -310,7 +310,11 @@ A CLI tool that performs AI-powered code reviews on pull requests from GitHub, G
 
 #### 9.4 Add Global Options 🚧
 - 🚧 `--config` flag to specify custom config file path
-- 🚧 `--verbose` flag for debug output
+- ✅ `--verbose` flag for debug output
+  - Implemented category-based logging: api, api-detailed, config, prompt, diff, platform
+  - Supports selecting specific categories: `--verbose=api,config`
+  - Auto-enables 'api' when 'api-detailed' is used
+  - Integrated throughout config manager, AI providers, platform adapters, and core reviewer
 - 🚧 `--quiet` flag to suppress non-essential output
 
 ---
@@ -541,6 +545,11 @@ A CLI tool that performs AI-powered code reviews on pull requests from GitHub, G
 - 🚧 Implement OpenAI Provider (GPT-4, GPT-4-turbo)
 - ✅ Implement Google Gemini Provider (gemini-3-flash-preview, gemini-2.5-flash)
 - 🚧 Implement Groq Provider (free tier, fast inference)
+  - **Recommended models for code review:**
+    - **llama-3.3-70b-versatile** (primary) - Best quality (70B params), 30 RPM, 1K RPD, 12K TPM, 100K TPD
+    - **meta-llama/llama-4-scout-17b-16e-instruct** - Best for large PRs, 30 RPM, 1K RPD, 30K TPM, 500K TPD
+    - **llama-3.1-8b-instant** - Best for high volume, 30 RPM, 14.4K RPD, 6K TPM, 500K TPD
+  - Default to llama-3.3-70b-versatile for balanced quality and limits
 - 🚧 Add support for switching between providers dynamically
 
 ### 20. Project-Specific Configuration 🚧

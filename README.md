@@ -131,6 +131,17 @@ ai-review pr 342 --post
 ai-review pr 342 --dry-run
 ```
 
+**Enable verbose logging for debugging:**
+```bash
+# Enable all verbose logging
+ai-review pr --verbose
+
+# Enable specific categories
+ai-review pr --verbose=api          # API requests/responses
+ai-review pr --verbose=api-detailed # Full API details (URLs, headers, payloads)
+ai-review pr -v=config,platform     # Config and platform operations
+```
+
 ## Usage
 
 ### Configuration Commands
@@ -261,6 +272,49 @@ Control how thorough the AI review should be by choosing a strictness level:
 **Priority**: CLI flag > config setting > interactive prompt
 
 If no strictness is configured, you'll be prompted to select one for each review.
+
+### Verbose Logging
+
+Debug and troubleshoot issues with category-based verbose logging.
+
+**Available Categories:**
+
+- **api** - Basic API logging (requests, responses, status codes)
+- **api-detailed** - Full API details (URLs, headers, payloads, request/response bodies)
+- **config** - Configuration loading and resolution paths
+- **prompt** - AI prompt construction and token counts
+- **diff** - Diff parsing details (files, additions, deletions)
+- **platform** - Platform operations (GitHub/Bitbucket API calls)
+
+**Usage:**
+
+```bash
+# Enable all categories
+ai-review pr --verbose
+
+# Enable specific category
+ai-review pr --verbose=api
+
+# Enable multiple categories
+ai-review pr --verbose=api,config,platform
+
+# Full API debugging
+ai-review pr -v=api-detailed
+```
+
+**Example Output:**
+
+```
+[CONFIG] Resolved 'provider' from global config
+[API] → Google Gemini request: gemini-2.5-flash
+[DIFF] Parsed diff: 5 files, +120 -45 lines
+[PROMPT] Constructed AI prompt: 2450 tokens, strictness=balanced, files=5
+[API] Tokens: input=2450, output=850
+[API] ← Google Gemini response: 200 (15234 bytes)
+[PLATFORM] postComment: Posting inline comment to PR #123 at src/file.ts:45
+```
+
+Use `--verbose=api-detailed` to see full request/response bodies, headers, and payloads for deep debugging.
 
 ### Review Workflow
 
@@ -493,6 +547,22 @@ No, the tool requires:
 
 The tool works with any programming language. Claude AI can review code in most popular languages including JavaScript, TypeScript, Python, Go, Rust, Java, C++, and many more.
 
+### How do I debug or troubleshoot issues?
+
+Use the `--verbose` flag with category-based logging:
+
+```bash
+# See all debug output
+ai-review pr --verbose
+
+# Debug specific issues
+ai-review pr --verbose=api          # API rate limits or connection issues
+ai-review pr --verbose=config       # Configuration resolution problems
+ai-review pr --verbose=api-detailed # Full API request/response details
+```
+
+Available categories: `api`, `api-detailed`, `config`, `prompt`, `diff`, `platform`. See the "Verbose Logging" section for detailed information.
+
 ## Current Status
 
 ✅ **MVP Complete** - Core features fully implemented
@@ -506,6 +576,7 @@ The tool works with any programming language. Claude AI can review code in most 
 - ✅ Anthropic (Claude) AI provider
 - ✅ Google (Gemini) AI provider with free tier
 - ✅ Configurable review strictness levels (easy, normal, balanced, strict, pedantic)
+- ✅ Verbose logging with category-based debugging (api, api-detailed, config, prompt, diff, platform)
 - ✅ Full review workflow with interactive comment management
 - ✅ Inline comment posting with line numbers
 - ✅ PR approval/request changes workflow

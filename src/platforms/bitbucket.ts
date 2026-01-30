@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import { getConfig } from '../config/manager';
+import { logger } from '../utils/logger';
 import {
   BaseGitPlatform,
   PullRequest,
@@ -85,6 +86,8 @@ export class BitbucketPlatform extends BaseGitPlatform {
 
   async listPullRequests(): Promise<PullRequest[]> {
     try {
+      logger.logPlatform('listPullRequests', `Fetching open PRs from ${this.config.workspace}/${this.config.repoSlug}`);
+
       const response = await this.api.get(
         `/repositories/${this.config.workspace}/${this.config.repoSlug}/pullrequests`,
         {
@@ -95,6 +98,8 @@ export class BitbucketPlatform extends BaseGitPlatform {
         }
       );
 
+      logger.logPlatform('listPullRequests', `Found ${response.data.values.length} open PRs`);
+
       return response.data.values.map((pr: any) => this.mapPullRequest(pr));
     } catch (error: any) {
       throw new Error(`Failed to list pull requests: ${error.message}`);
@@ -103,6 +108,8 @@ export class BitbucketPlatform extends BaseGitPlatform {
 
   async getPullRequestDetails(id: string): Promise<PullRequestDetails> {
     try {
+      logger.logPlatform('getPullRequestDetails', `Fetching PR #${id} with diff and comments`);
+
       // Fetch PR details, diff, and comments in parallel
       const [prResponse, diffResponse, commentsResponse] = await Promise.all([
         this.api.get(`/repositories/${this.config.workspace}/${this.config.repoSlug}/pullrequests/${id}`),
@@ -119,6 +126,8 @@ export class BitbucketPlatform extends BaseGitPlatform {
       // Bitbucket doesn't provide per-file stats in the PR object, so we'll parse from diff
       const files = this.parseFilesFromDiff(diff);
 
+      logger.logPlatform('getPullRequestDetails', `Fetched PR #${id}: ${files.length} files, ${comments.length} existing comments`);
+
       return {
         pr: this.mapPullRequest(prData),
         description: prData.description || '',
@@ -134,6 +143,15 @@ export class BitbucketPlatform extends BaseGitPlatform {
 
   async postComment(prId: string, comment: CommentInput, commitSha?: string): Promise<void> {
     try {
+      const commentType = comment.path && comment.line ? 'inline' : 'general';
+      const location = comment.path && comment.line ? `${comment.path}:${comment.line}` : 'PR';
+      const rangeInfo = comment.startLine && comment.startLine !== comment.line
+        ? ` (range: ${comment.startLine}-${comment.line})`
+        : comment.startLine
+          ? ` (single line, startLine=${comment.startLine} equals line=${comment.line})`
+          : ' (no startLine)';
+      logger.logPlatform('postComment', `Posting ${commentType} comment to PR #${prId} at ${location}${rangeInfo}`);
+
       const payload: any = {
         content: {
           raw: comment.body,
@@ -144,19 +162,24 @@ export class BitbucketPlatform extends BaseGitPlatform {
       if (comment.path && comment.line) {
         payload.inline = {
           path: comment.path,
-          to: comment.line,
+          to: comment.line, // Ending line in NEW version (after PR changes)
         };
 
         // Multi-line comment support
+        // start_to = starting line in NEW version (for multi-line comments)
+        // to = ending line in NEW version
+        // Note: 'from' and 'start_from' are for OLD version (deleted code), not used here
         if (comment.startLine && comment.startLine !== comment.line) {
-          payload.inline.from = comment.startLine;
+          payload.inline.start_to = comment.startLine;
         }
       }
 
-      await this.api.post(
-        `/repositories/${this.config.workspace}/${this.config.repoSlug}/pullrequests/${prId}/comments`,
-        payload
-      );
+      const url = `/repositories/${this.config.workspace}/${this.config.repoSlug}/pullrequests/${prId}/comments`;
+      logger.logPlatformApiRequest('POST', url, undefined, payload);
+
+      await this.api.post(url, payload);
+
+      logger.logPlatform('postComment', `Comment posted successfully`);
     } catch (error: any) {
       throw new Error(`Failed to post comment: ${error.message}`);
     }
@@ -164,28 +187,28 @@ export class BitbucketPlatform extends BaseGitPlatform {
 
   async submitReview(prId: string, action: ReviewAction, body?: string): Promise<void> {
     try {
+      logger.logPlatform('submitReview', `Submitting review for PR #${prId} with action: ${action}`);
+
       if (action === 'APPROVE') {
+        const url = `/repositories/${this.config.workspace}/${this.config.repoSlug}/pullrequests/${prId}/approve`;
+        const headers = { 'Content-Type': undefined };
+
+        logger.logPlatformApiRequest('POST', url, headers, undefined);
+
         // Approve the PR (remove Content-Type header as Bitbucket approve endpoint expects no body)
-        await this.api.post(
-          `/repositories/${this.config.workspace}/${this.config.repoSlug}/pullrequests/${prId}/approve`,
-          undefined,
-          {
-            headers: {
-              'Content-Type': undefined,
-            },
-          }
-        );
+        await this.api.post(url, undefined, { headers });
+
+        logger.logPlatform('submitReview', `PR #${prId} approved successfully`);
       } else if (action === 'REQUEST_CHANGES') {
+        const url = `/repositories/${this.config.workspace}/${this.config.repoSlug}/pullrequests/${prId}/request-changes`;
+        const headers = { 'Content-Type': undefined };
+
+        logger.logPlatformApiRequest('POST', url, headers, undefined);
+
         // Request changes on the PR (remove Content-Type header, similar to approve)
-        await this.api.post(
-          `/repositories/${this.config.workspace}/${this.config.repoSlug}/pullrequests/${prId}/request-changes`,
-          undefined,
-          {
-            headers: {
-              'Content-Type': undefined,
-            },
-          }
-        );
+        await this.api.post(url, undefined, { headers });
+
+        logger.logPlatform('submitReview', `Changes requested for PR #${prId}`);
       } else if (action === 'COMMENT') {
         // For Bitbucket, all comments are already posted individually via postComment()
         // No need to post an additional general comment

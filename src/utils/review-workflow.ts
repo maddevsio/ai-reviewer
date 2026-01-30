@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { displayCodeContext } from './code-display';
-import { getCodeContext } from './diff-parser';
+import { getCodeContext, isLineInDiff } from './diff-parser';
 import { askYesNo, askConfirmation } from './prompts';
 import {
   ADDED_LINE_BG,
@@ -14,7 +14,7 @@ import {
 
 export interface ReviewComment {
   file: string;
-  line: number;
+  line?: number; // Optional - undefined for general comments
   startLine?: number;
   comment: string;
   originalCode?: string;
@@ -32,6 +32,26 @@ interface CommentReviewResult {
 }
 
 /**
+ * Convert an inline comment to a general comment with line reference prefix
+ * When a comment targets a line not in the diff, we convert it to a general
+ * comment (no line number) and add a prefix explaining which line it refers to.
+ */
+function convertToGeneralComment(comment: ReviewComment): ReviewComment {
+  const lineRef = comment.startLine && comment.startLine !== comment.line
+    ? `lines ${comment.startLine}-${comment.line}`
+    : `line ${comment.line}`;
+
+  return {
+    file: comment.file,
+    line: undefined, // Remove line number to make it a general comment
+    startLine: undefined,
+    comment: `[About ${lineRef} - not modified in this PR] ${comment.comment}`,
+    originalCode: comment.originalCode,
+    suggestedCode: comment.suggestedCode,
+  };
+}
+
+/**
  * Review comments interactively with the user
  */
 export async function reviewCommentsInteractively(
@@ -44,19 +64,37 @@ export async function reviewCommentsInteractively(
   for (let i = 0; i < comments.length; i++) {
     const comment = comments[i];
 
-    const lineRange = comment.startLine
+    const lineRange = comment.startLine && comment.startLine !== comment.line
       ? `${comment.startLine}-${comment.line}`
       : `${comment.line}`;
     console.log(chalk.bold(`\n[${i + 1}/${comments.length}] ${comment.file}:${lineRange}`));
 
+    // Check if the line exists in the diff
+    const lineInDiff = comment.line ? isLineInDiff(parsedDiff, comment.file, comment.line) : false;
+    const hasLineNotInDiff = comment.line && !lineInDiff;
+
     // Show code context from diff if line number is available
     if (comment.line) {
       // For multi-line comments, show context around the entire range
-      const targetLine = comment.startLine || comment.line;
-      const codeContext = getCodeContext(parsedDiff, comment.file, targetLine, 3);
+      let targetLine: number;
+      let contextLines: number;
+
+      if (comment.startLine && comment.startLine !== comment.line) {
+        // Multi-line: show entire range + 3 lines on each side
+        // Calculate middle of range and adjust context to cover full range
+        targetLine = Math.floor((comment.startLine + comment.line) / 2);
+        const halfRange = Math.ceil((comment.line - comment.startLine) / 2);
+        contextLines = halfRange + 3; // Half range + 3 lines of context
+      } else {
+        // Single line: show 3 lines of context around it
+        targetLine = comment.line;
+        contextLines = 3;
+      }
+
+      const codeContext = getCodeContext(parsedDiff, comment.file, targetLine, contextLines);
       if (codeContext.length > 0) {
         // Calculate starting line number (approximate)
-        let startLineNum = targetLine - 3;
+        let startLineNum = targetLine - contextLines;
         if (startLineNum < 1) startLineNum = 1;
 
         displayCodeContext(codeContext, startLineNum);
@@ -67,6 +105,16 @@ export async function reviewCommentsInteractively(
       console.log(chalk.bgHex(REMOVED_LINE_BG).black(`- ${comment.originalCode}`));
       console.log(chalk.bgHex(ADDED_LINE_BG).black(`+ ${comment.suggestedCode}`));
       console.log(chalk.hex(WARNING_COLOR)('━'.repeat(70)));
+    }
+
+    // Show warning if line is not in the diff
+    if (hasLineNotInDiff) {
+      console.log(chalk.hex(WARNING_COLOR)(`\n⚠ Line ${comment.line} is not modified in this PR`));
+      if (options.post) {
+        console.log(chalk.hex(WARNING_COLOR)('  Will post as general file comment with line reference'));
+      } else {
+        console.log(chalk.hex(WARNING_COLOR)('  Will post as general file comment if accepted'));
+      }
     }
 
     console.log(chalk.hex(SECONDARY_COLOR)('AI Comment:'), comment.comment);
@@ -111,7 +159,11 @@ export async function reviewCommentsInteractively(
         console.log(chalk.hex(INFO_COLOR)('\nReview cancelled'));
         return { acceptedComments: [], cancelled: true };
       } else if (action === 'accept') {
-        acceptedComments.push(comment);
+        // Convert to general comment if line is not in diff
+        const commentToAccept = hasLineNotInDiff
+          ? convertToGeneralComment(comment)
+          : comment;
+        acceptedComments.push(commentToAccept);
         console.log(chalk.hex(SUCCESS_COLOR)('✓ Comment accepted'));
       } else if (action === 'edit') {
         const { editedComment } = await inquirer.prompt([
@@ -122,7 +174,11 @@ export async function reviewCommentsInteractively(
             default: comment.comment,
           },
         ]);
-        acceptedComments.push({ ...comment, comment: editedComment });
+        // Convert to general comment if line is not in diff
+        const commentToAccept = hasLineNotInDiff
+          ? convertToGeneralComment({ ...comment, comment: editedComment })
+          : { ...comment, comment: editedComment };
+        acceptedComments.push(commentToAccept);
         console.log(chalk.hex(SUCCESS_COLOR)('✓ Comment updated'));
       } else if (action === 'skip') {
         console.log(chalk.hex(WARNING_COLOR)('⊘ Comment skipped'));

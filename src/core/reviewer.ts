@@ -15,6 +15,7 @@ import {
 } from '../utils/review-workflow';
 import { getConfig, type ReviewStrictness } from '../config/manager';
 import { STRICTNESS_LEVELS, getStrictnessDisplayName, getStrictnessInstructions } from '../utils/strictness';
+import { logger } from '../utils/logger';
 
 export interface ReviewOptions {
   post?: boolean;
@@ -108,9 +109,14 @@ export async function reviewPullRequest(
 
   // Parse the diff for code context extraction
   const parsedDiff = parseDiff(prDetails.diff);
+  const totalAdditions = prDetails.files.reduce((sum, f) => sum + f.additions, 0);
+  const totalDeletions = prDetails.files.reduce((sum, f) => sum + f.deletions, 0);
+  logger.logDiff(prDetails.files.length, totalAdditions, totalDeletions);
 
   // Prepare the prompt for AI review
   const reviewPrompt = buildReviewPrompt(prDetails, strictness);
+  const promptTokens = Math.ceil(reviewPrompt.length / 4); // Rough token estimate
+  logger.logPrompt(promptTokens, strictness, prDetails.files.length);
 
   // Send to AI for review
   spinner = ora('Analyzing code changes with AI...').start();
@@ -147,12 +153,19 @@ export async function reviewPullRequest(
 
   // Prepare comments for submission
   const commentsForSubmission = hasPendingComments
-    ? acceptedComments.map((c) => ({
-        body: c.comment,
-        path: c.file,
-        line: c.line,
-        startLine: c.startLine,
-      }))
+    ? acceptedComments.map((c) => {
+        const commentInput = {
+          body: c.comment,
+          path: c.file,
+          line: c.line,
+          startLine: c.startLine,
+        };
+
+        // Log what we're about to submit
+        logger.log('platform', `Preparing comment for submission: ${c.file}:${c.startLine || 'no-start'}-${c.line}, hasRange=${!!c.startLine && c.startLine !== c.line}`);
+
+        return commentInput;
+      })
     : [];
 
   await handlePRApprovalWorkflow(
@@ -240,21 +253,32 @@ ${strictnessInstructions}
 
 For each issue found, respond in this EXACT format:
 
-For single-line issues:
-FILE: <file path>
-LINE: <line number>
-COMMENT: <your review comment>
----
-
-For multi-line issues (spanning multiple lines):
+For multi-line issues (use this when the issue spans multiple lines):
 FILE: <file path>
 START_LINE: <start line number>
 END_LINE: <end line number>
 COMMENT: <your review comment>
 ---
 
-Use multi-line format when the issue affects a block of code (e.g., entire function, loop, try-catch block).
-Use single-line format for specific line issues.
+For single-line issues (use this when the issue is on one specific line):
+FILE: <file path>
+LINE: <line number>
+COMMENT: <your review comment>
+---
+
+Use multi-line format (START_LINE to END_LINE) for:
+- Functions, loops, conditionals, try-catch blocks
+- JSX elements spanning multiple lines
+- Any issue involving a code block
+
+Use single-line format (LINE) for:
+- Issues isolated to one specific line
+- Simple typos, wrong values, or syntax errors on a single line
+
+Important:
+- Ensure line numbers point to the actual code you're discussing
+- For multi-line: START_LINE = first line of block, END_LINE = last line of block
+- For single-line: LINE = the line containing the issue
 
 If the code looks good and has no issues, respond with: "LGTM - No issues found."`;
 }
@@ -271,8 +295,8 @@ function parseAIResponse(response: string): ReviewComment[] {
   for (const section of sections) {
     const lines = section.trim().split('\n');
     let file = '';
-    let line: number | undefined;
-    let startLine: number | undefined;
+    let line: number | undefined = undefined;
+    let startLine: number | undefined = undefined;
     let comment = '';
 
     for (const l of lines) {
@@ -302,7 +326,17 @@ function parseAIResponse(response: string): ReviewComment[] {
     }
 
     if (file && line && comment) {
-      comments.push({ file, line, comment: comment.trim() });
+      const reviewComment = {
+        file,
+        line,
+        startLine,
+        comment: comment.trim()
+      };
+
+      // Log what the AI returned for debugging
+      logger.log('prompt', `AI comment parsed: file=${file}, startLine=${startLine || 'undefined'}, endLine=${line}, hasRange=${!!startLine && startLine !== line}`);
+
+      comments.push(reviewComment);
     }
   }
 

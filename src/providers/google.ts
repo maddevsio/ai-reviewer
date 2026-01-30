@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { BaseAIProvider } from './base';
+import { logger } from '../utils/logger';
 
 export class GoogleProvider extends BaseAIProvider {
   private client: GoogleGenerativeAI;
@@ -13,11 +14,15 @@ export class GoogleProvider extends BaseAIProvider {
 
   async sendPrompt(prompt: string, context?: Record<string, any>): Promise<string> {
     try {
+      logger.logApiRequest('Google Gemini', this.model, { promptLength: prompt.length });
+
       const model = this.client.getGenerativeModel({ model: this.model });
 
       const result = await model.generateContent(prompt);
       const response = result.response;
       const text = response.text();
+
+      logger.logApiResponse('Google Gemini', 200, text.length);
 
       if (!text) {
         throw new Error('No text content in response');

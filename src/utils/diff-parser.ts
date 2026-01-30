@@ -61,6 +61,34 @@ export function parseDiff(diff: string): Map<string, ParsedFile> {
   return files;
 }
 
+/**
+ * Check if a line number exists in the diff for a given file
+ * @param parsedFiles Parsed diff files
+ * @param filePath Path to the file
+ * @param lineNumber Line number to check
+ * @returns true if the line exists in the diff, false otherwise
+ */
+export function isLineInDiff(
+  parsedFiles: Map<string, ParsedFile>,
+  filePath: string,
+  lineNumber: number
+): boolean {
+  const file = parsedFiles.get(filePath);
+  if (!file) {
+    return false;
+  }
+
+  // Check if line is within any hunk
+  for (const hunk of file.hunks) {
+    const hunkEnd = hunk.newStart + hunk.newLines;
+    if (lineNumber >= hunk.newStart && lineNumber < hunkEnd) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function getCodeContext(
   parsedFiles: Map<string, ParsedFile>,
   filePath: string,

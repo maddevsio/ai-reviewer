@@ -51,8 +51,6 @@ Commands:
       get <key>            Get a configuration value
       list                 Show all configuration settings and active config source
       delete <key>         Delete a configuration value
-
-Documentation: https://github.com/anthropics/ai-code-review
 `);
 
 // Register commands

@@ -8,6 +8,7 @@ AI-powered code review CLI tool for pull requests. Get intelligent feedback on y
 - 🔄 **Interactive Workflow** - Review, accept, edit, or skip each AI suggestion
 - 💬 **Inline Comments** - Posts comments directly on specific lines in your PRs
 - ✅ **PR Approval** - Approve PRs, request changes, or leave comments only
+- 🎯 **Configurable Strictness** - Choose review depth from easy (critical only) to pedantic (everything)
 - 🎨 **Beautiful CLI** - Terminal-style diff colors and intuitive interface
 - 🔒 **Secure** - API keys are masked and stored locally
 - 🚀 **No Setup Demo** - Try it out with mock data before configuring
@@ -40,10 +41,11 @@ ai-review init --global
 ```
 
 This interactive wizard will guide you through:
-1. Selecting your AI provider (Claude)
+1. Selecting your AI provider (Claude / Google Gemini)
 2. Entering your AI provider API key
 3. Choosing your git platform (GitHub / Bitbucket)
 4. Platform-specific setup (workspace, repo, API token for Bitbucket)
+5. Optional: Review strictness level (easy, normal, balanced, strict, pedantic)
 
 ### 2. Get Your API Key
 
@@ -113,6 +115,12 @@ ai-review pr
 ai-review pr 342
 ```
 
+**Review with specific strictness level:**
+```bash
+ai-review pr 342 --strictness pedantic
+ai-review pr 342 -s easy
+```
+
 **Auto-post accepted comments:**
 ```bash
 ai-review pr 342 --post
@@ -150,6 +158,11 @@ ai-review config set platform
 **Set Google Gemini model (interactive):**
 ```bash
 ai-review config set google-model
+```
+
+**Set review strictness (interactive):**
+```bash
+ai-review config set review-strictness
 ```
 
 **Get specific value:**
@@ -226,6 +239,28 @@ If you have git repos inside this directory, they will NOT use this config.
 
 ? Create local config anyway? (y/N)
 ```
+
+### Review Strictness Levels
+
+Control how thorough the AI review should be by choosing a strictness level:
+
+**Available Levels:**
+
+- **easy** - Only critical bugs, security vulnerabilities, and breaking changes
+- **normal** - Important issues including bugs, security, performance, and significant best practice violations
+- **balanced** - Balanced review covering bugs, security, performance, best practices, maintainability, and important style issues (recommended)
+- **strict** - Strict code quality including comprehensive checks, naming conventions, documentation, and test coverage
+- **pedantic** - Everything matters: all quality issues, style inconsistencies, documentation, formatting, and optimizations
+
+**How to Set Strictness:**
+
+1. **Per-review (flag)**: `ai-review pr --strictness pedantic` or `-s easy`
+2. **Save as default**: `ai-review config set review-strictness balanced`
+3. **During init**: Optionally set during setup wizard (can skip to be asked each time)
+
+**Priority**: CLI flag > config setting > interactive prompt
+
+If no strictness is configured, you'll be prompted to select one for each review.
 
 ### Review Workflow
 
@@ -437,7 +472,15 @@ ai-review config list
 
 ### Can I customize the AI's review style?
 
-Not yet, but configurable review strictness levels (relaxed, balanced, strict, pedantic) are planned for a future release.
+Yes! Use review strictness levels to control how thorough the AI review should be:
+
+- **easy** - Only critical issues (bugs, security, breaking changes)
+- **normal** - Important issues and best practices
+- **balanced** - Comprehensive review (recommended default)
+- **strict** - Strict quality standards with thorough checks
+- **pedantic** - Everything matters, no detail overlooked
+
+Set via flag (`-s strict`), config (`ai-review config set review-strictness`), or you'll be prompted during each review if not configured.
 
 ### Does it work offline?
 
@@ -459,18 +502,15 @@ The tool works with any programming language. Claude AI can review code in most 
 - ✅ Hierarchical config resolution (local project overrides global)
 - ✅ Git-aware config detection (auto-finds repo root)
 - ✅ GitHub integration via `gh` CLI and Octokit API
-- ✅ Bitbucket integration via REST API (API Tokens with Bearer auth)
+- ✅ Bitbucket integration via REST API (API Tokens)
 - ✅ Anthropic (Claude) AI provider
 - ✅ Google (Gemini) AI provider with free tier
+- ✅ Configurable review strictness levels (easy, normal, balanced, strict, pedantic)
 - ✅ Full review workflow with interactive comment management
 - ✅ Inline comment posting with line numbers
 - ✅ PR approval/request changes workflow
 - ✅ Demo mode with mock data
 - ✅ Comprehensive CLI help
-
-**Coming Next (Phase 2):**
-- Configurable review strictness levels (relaxed, balanced, strict, pedantic)
-- Bitbucket OAuth 2.0 support (before June 2026 deadline)
 
 **Future Plans:**
 - GitLab support

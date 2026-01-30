@@ -13,10 +13,13 @@ import {
   handlePRApprovalWorkflow,
   ReviewComment,
 } from '../utils/review-workflow';
+import { getConfig, type ReviewStrictness } from '../config/manager';
+import { STRICTNESS_LEVELS, getStrictnessDisplayName, getStrictnessInstructions } from '../utils/strictness';
 
 export interface ReviewOptions {
   post?: boolean;
   dryRun?: boolean;
+  strictness?: ReviewStrictness;
 }
 
 export async function reviewPullRequest(
@@ -55,6 +58,49 @@ export async function reviewPullRequest(
     prId = selectedPr;
   }
 
+  // Determine strictness level (flag > config > prompt)
+  let strictness: ReviewStrictness;
+
+  if (options.strictness) {
+    strictness = options.strictness;
+  } else if (getConfig('review-strictness')) {
+    strictness = getConfig('review-strictness')!;
+  } else {
+    const { selectedStrictness } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'selectedStrictness',
+        message: 'Select review strictness:',
+        choices: [
+          {
+            name: `${STRICTNESS_LEVELS.easy.doom} (easy) - ${STRICTNESS_LEVELS.easy.description}`,
+            value: 'easy',
+          },
+          {
+            name: `${STRICTNESS_LEVELS.normal.doom} (normal) - ${STRICTNESS_LEVELS.normal.description}`,
+            value: 'normal',
+          },
+          {
+            name: `${STRICTNESS_LEVELS.balanced.doom} (balanced) - ${STRICTNESS_LEVELS.balanced.description}`,
+            value: 'balanced',
+          },
+          {
+            name: `${STRICTNESS_LEVELS.strict.doom} (strict) - ${STRICTNESS_LEVELS.strict.description}`,
+            value: 'strict',
+          },
+          {
+            name: `${STRICTNESS_LEVELS.pedantic.doom} (pedantic) - ${STRICTNESS_LEVELS.pedantic.description}`,
+            value: 'pedantic',
+          },
+        ],
+        default: 'balanced',
+      },
+    ]);
+    strictness = selectedStrictness as ReviewStrictness;
+  }
+
+  console.log(chalk.hex(SECONDARY_COLOR)(`🎮 Review strictness: ${getStrictnessDisplayName(strictness)}\n`));
+
   // Fetch PR details
   let spinner = ora(`Fetching PR #${prId}...`).start();
   const prDetails = await platform.getPullRequestDetails(prId!);
@@ -64,7 +110,7 @@ export async function reviewPullRequest(
   const parsedDiff = parseDiff(prDetails.diff);
 
   // Prepare the prompt for AI review
-  const reviewPrompt = buildReviewPrompt(prDetails);
+  const reviewPrompt = buildReviewPrompt(prDetails, strictness);
 
   // Send to AI for review
   spinner = ora('Analyzing code changes with AI...').start();
@@ -173,7 +219,9 @@ export async function reviewPullRequest(
   );
 }
 
-function buildReviewPrompt(prDetails: any): string {
+function buildReviewPrompt(prDetails: any, strictness: ReviewStrictness): string {
+  const strictnessInstructions = getStrictnessInstructions(strictness);
+
   return `You are a code reviewer. Review the following pull request and provide specific, actionable feedback.
 
 PR Title: ${prDetails.pr.title}
@@ -187,12 +235,8 @@ Full Diff:
 ${prDetails.diff}
 \`\`\`
 
-Please provide a code review focusing on:
-1. Potential bugs or errors
-2. Security vulnerabilities
-3. Performance issues
-4. Code quality and best practices
-5. Readability and maintainability
+REVIEW STRICTNESS: ${getStrictnessDisplayName(strictness)}
+${strictnessInstructions}
 
 For each issue found, respond in this EXACT format:
 

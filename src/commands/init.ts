@@ -5,6 +5,7 @@ import { platform } from 'os';
 import { setConfig, listConfig, getConfigInfo } from '../config/manager';
 import { SUCCESS_COLOR, INFO_COLOR, SECONDARY_COLOR, HIGHLIGHT_COLOR, WARNING_COLOR } from '../utils/colors';
 import { findGitRepoRoot } from '../utils/git';
+import { STRICTNESS_LEVELS } from '../utils/strictness';
 
 function getGitHubCLIInstallCommand(): string {
   const os = platform();
@@ -239,6 +240,51 @@ export const initCommand = new Command('init')
       console.log(chalk.hex(INFO_COLOR)('   - Repositories: Read, Write'));
       console.log(chalk.hex(INFO_COLOR)('   - Pull requests: Read, Write'));
       console.log(chalk.hex(INFO_COLOR)('   Create at: https://bitbucket.org/account/settings/api-tokens/\n'));
+    }
+
+    // Step 6: Review strictness (optional)
+    console.log(chalk.hex(INFO_COLOR)('Review strictness configuration (optional):\n'));
+
+    const { strictness } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'strictness',
+        message: 'Select default review strictness:',
+        choices: [
+          {
+            name: `${STRICTNESS_LEVELS.easy.doom} (easy) - ${STRICTNESS_LEVELS.easy.description}`,
+            value: 'easy',
+          },
+          {
+            name: `${STRICTNESS_LEVELS.normal.doom} (normal) - ${STRICTNESS_LEVELS.normal.description}`,
+            value: 'normal',
+          },
+          {
+            name: `${STRICTNESS_LEVELS.balanced.doom} (balanced) - ${STRICTNESS_LEVELS.balanced.description}`,
+            value: 'balanced',
+          },
+          {
+            name: `${STRICTNESS_LEVELS.strict.doom} (strict) - ${STRICTNESS_LEVELS.strict.description}`,
+            value: 'strict',
+          },
+          {
+            name: `${STRICTNESS_LEVELS.pedantic.doom} (pedantic) - ${STRICTNESS_LEVELS.pedantic.description}`,
+            value: 'pedantic',
+          },
+          {
+            name: chalk.hex(SECONDARY_COLOR)('Skip (will be asked with each review, can set later via config)'),
+            value: 'skip',
+          },
+        ],
+        default: 'skip',
+      },
+    ]);
+
+    if (strictness !== 'skip') {
+      setConfig('review-strictness', strictness as never, configScope);
+      console.log(chalk.hex(SUCCESS_COLOR)(`✓ Default strictness set to: ${strictness}\n`));
+    } else {
+      console.log(chalk.hex(SECONDARY_COLOR)('⊘ Skipped strictness configuration (will be asked during each review)\n'));
     }
 
     // Summary

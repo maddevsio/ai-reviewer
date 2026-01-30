@@ -5,11 +5,14 @@ import { findGitRepoRoot } from '../utils/git';
 
 export type AIProvider = 'anthropic' | 'openai' | 'google';
 export type Platform = 'github' | 'gitlab' | 'bitbucket';
+export type ReviewStrictness = 'easy' | 'normal' | 'balanced' | 'strict' | 'pedantic';
 
 export interface ConfigSchema {
   provider?: AIProvider;
   'api-key'?: string;
   platform?: Platform;
+  // Review settings
+  'review-strictness'?: ReviewStrictness;
   // Google-specific fields
   'google-model'?: string;
   // Bitbucket-specific fields

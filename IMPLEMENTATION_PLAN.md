@@ -177,7 +177,7 @@ A CLI tool that performs AI-powered code reviews on pull requests from GitHub, G
 - Gather PR metadata (title, description, author)
 - Combine all changed files into single context
 - Include file paths and line numbers
-- 🚧 **Load and include project-specific guidelines from `.aireview` file** (see section 2.4)
+- 🚧 **Load and include project-specific guidelines from `.aireview` file** (see section 20)
 - Optionally include additional project context (README, CONTRIBUTING.md)
 - Format all context for optimal AI understanding
 
@@ -256,12 +256,7 @@ A CLI tool that performs AI-powered code reviews on pull requests from GitHub, G
 - Handle submission failures gracefully
 - Provide confirmation of successful submission
 
-#### 8.3 Add Comment Filtering 🚧
-- 🚧 Allow filtering by severity (if AI provides severity levels)
-- 🚧 Allow filtering by file or file type
-- 🚧 Allow user to review only specific categories
-
-#### 8.4 PR Approval Feature ✅
+#### 8.3 PR Approval Feature ✅
 - ✅ Allow PR approval after review
   - After posting comments (or choosing not to), prompt user with menu of review actions
   - Option to approve even with minor suggestions/comments
@@ -407,88 +402,100 @@ A CLI tool that performs AI-powered code reviews on pull requests from GitHub, G
 
 **Foundation Complete:** ✅ Hierarchical config resolution (Phase 1) enables project-specific configurations. This infrastructure supports all Phase 2 enhancements that require per-project settings (Bitbucket workspaces, custom strictness, future guidelines).
 
-### 13. Bitbucket API Integration 🚧
+### 13. Bitbucket API Integration ✅
 
-#### 13.1 Study Bitbucket API 🚧
-- 🚧 Review Bitbucket REST API documentation
-- 🚧 Understand authentication (app passwords, OAuth)
-- 🚧 Understand PR structure and diff format
+#### 13.1 Study Bitbucket API ✅
+- ✅ Review Bitbucket REST API documentation
+- ✅ Understand authentication (API Tokens with Bearer auth)
+- ✅ Understand PR structure and diff format
 
-#### 13.2 Implement Bitbucket Platform Adapter 🚧
-- 🚧 Implement direct API calls (no CLI available)
-- 🚧 Implement authentication handling
-- 🚧 Map Bitbucket pull requests to PR model
-- 🚧 Handle Bitbucket-specific features
+#### 13.2 Implement Bitbucket Platform Adapter ✅
+- ✅ Implement direct API calls using axios (no CLI available)
+- ✅ Implement Bearer token authentication (API Tokens only)
+- ✅ Map Bitbucket pull requests to PR model
+- ✅ Handle Bitbucket-specific features (approve, request changes endpoints)
+- ✅ Fix Content-Type header handling for endpoints that reject it
 
-#### 13.3 Add Bitbucket Configuration 🚧
-- 🚧 Add config fields for workspace and repository
-- 🚧 Add config field for Bitbucket app password
-- 🚧 Update configuration commands to support Bitbucket
+#### 13.3 Add Bitbucket Configuration ✅
+- ✅ Add config fields for workspace and repository slug
+- ✅ Add config field for Bitbucket API Token (bitbucket-app-password)
+- ✅ Update configuration commands to support Bitbucket
+- ✅ Add Bitbucket setup to init wizard with validation
 
-#### 13.4 Test Bitbucket Integration 🚧
-- 🚧 Test on real Bitbucket repositories
-- 🚧 Verify comment posting works correctly
-- 🚧 Handle Bitbucket Cloud vs Server differences if needed
+#### 13.4 Test Bitbucket Integration ✅
+- ✅ Test on real Bitbucket repositories
+- ✅ Verify comment posting works correctly
+- ✅ Test PR approval and request changes workflows
+- ✅ Verify inline comments with file and line references
 
 ---
 
-### 14. Review Strictness Levels 🚧
+### 14. Review Strictness Levels ✅
 
 **Allow users to control how strict/thorough the AI review is**
 
-#### 14.1 Design Strictness Levels 🚧
-- 🚧 Define levels:
-  - **Relaxed** - Only critical bugs, security vulnerabilities, broken functionality
-  - **Balanced** (default) - Bugs, security, performance issues, significant code quality problems
-  - **Strict** - Everything in Balanced + style inconsistencies, best practice violations, maintainability
-  - **Pedantic** - Ultra-strict including nitpicks, minor improvements, alternative approaches, edge cases
+#### 14.1 Design Strictness Levels ✅
+- ✅ Define levels with DOOM 64-inspired names:
+  - **easy** - They're Too Young to Die - Only critical bugs, security vulnerabilities, breaking changes
+  - **normal** - Not Too Rough - Important issues and best practices
+  - **balanced** (default) - Hurt Them Plenty - Comprehensive balanced review (recommended)
+  - **strict** - Ultra-Violence - Strict quality standards with thorough checks
+  - **pedantic** - Watch Them Die - Everything matters, no detail overlooked
 
-#### 14.2 Implement Configuration 🚧
-- 🚧 Add `review-strictness` config option
-- 🚧 Add to config command: `ai-review config set review-strictness`
-- 🚧 Add to setup wizard with explanation of each level
-- 🚧 Default to "balanced" if not specified
+#### 14.2 Implement Configuration ✅
+- ✅ Add `review-strictness` config option to schema
+- ✅ Add to config command: `ai-review config set review-strictness` with interactive selection
+- ✅ Add to setup wizard with skip option (defaults to prompting per-review)
+- ✅ Support both DOOM names and short names in all interfaces
 
-#### 14.3 Update AI Prompts 🚧
-- 🚧 Modify review prompt generation to include strictness instructions
-- 🚧 Tailor AI instructions based on selected level
-- 🚧 Test that AI respects the strictness guidance
+#### 14.3 Update AI Prompts ✅
+- ✅ Modify review prompt generation to include strictness instructions
+- ✅ Create specific instructions for each strictness level
+- ✅ Display selected strictness level during review workflow
+- ✅ Support setting via CLI flag (`--strictness` / `-s`), config, or interactive prompt
 
-#### 14.4 Update Documentation 🚧
-- 🚧 Document strictness levels in README
-- 🚧 Add examples of what each level catches
-- 🚧 Update CLI help text
+#### 14.4 Update Documentation ✅
+- ✅ Document strictness levels in README with detailed descriptions
+- ✅ Add examples in Quick Start and Configuration sections
+- ✅ Update CLI help text with all strictness options
+- ✅ Add new "Review Strictness Levels" section to README
+- ✅ Update FAQ with customization information
 
 ---
 
-### 15. Free AI Provider 🚧
+### 15. Free AI Provider ✅
 
 **Add a free provider option to avoid paywall barrier for new users**
 
-#### 15.1 Research Free Options 🚧
-- 🚧 Evaluate options:
+#### 15.1 Research Free Options ✅
+- ✅ Evaluated Google Gemini with free tier (no credit card required)
+- ✅ Selected Gemini for initial free tier implementation
+- 🚧 **Future consideration**: Additional free providers may be added:
   - Ollama (local, truly free, no API key)
   - Groq (free tier, fast inference)
   - Together.ai (free tier)
   - Hugging Face Inference API (free tier)
   - Other open-source model APIs
 
-#### 15.2 Implement Selected Provider 🚧
-- 🚧 Implement provider adapter for chosen free option
-- 🚧 Handle authentication (if required)
-- 🚧 Map API responses to review format
-- 🚧 Handle rate limits and quotas
+#### 15.2 Implement Selected Provider ✅
+- ✅ Implement Google Gemini provider using `@google/generative-ai` SDK
+- ✅ Add model selection (Gemini 3 Flash, Gemini 2.5 Flash)
+- ✅ Handle API key authentication (AIza prefix)
+- ✅ Map Gemini API responses to review format
+- ✅ Document rate limits (requests per minute/day, tokens per minute) without hardcoding values
 
-#### 15.3 Update Setup Wizard 🚧
-- 🚧 Add free provider to provider selection menu
-- 🚧 Show clearly that it's free (no API key/credits needed)
-- 🚧 Provide installation instructions if needed (e.g., Ollama setup)
-- 🚧 Set appropriate expectations for quality vs paid options
+#### 15.3 Update Setup Wizard ✅
+- ✅ Add Google (Gemini) to provider selection menu with "(Free tier)" label
+- ✅ Show clearly that it's free (no credit card required)
+- ✅ Add model selection during init (can be skipped)
+- ✅ Provide API key setup instructions in README
 
-#### 15.4 Update Documentation 🚧
-- 🚧 Document free provider setup in README
-- 🚧 Add comparison of free vs paid providers
-- 🚧 Update demo to work with free provider
+#### 15.4 Update Documentation ✅
+- ✅ Document Google Gemini setup in README with free tier details
+- ✅ Add rate limit notes without specific numbers
+- ✅ Document model selection options
+- ✅ Update FAQ with cost comparison (free vs paid)
+- ✅ Update "How much does it cost?" section with Google free tier info
 
 ---
 
@@ -518,35 +525,32 @@ A CLI tool that performs AI-powered code reviews on pull requests from GitHub, G
 ### 17. Enhanced Review Capabilities 🚧
 - 🚧 Support for reviewing specific commits
 - 🚧 Support for reviewing local changes before pushing
-- 🚧 Support for comparing branches
 - 🚧 Custom review rules and guidelines per repository
 - 🚧 Integration with existing code quality tools
 
 ### 18. Performance Optimizations 🚧
-- 🚧 Implement caching for large PRs
+- 🚧 Implement file-level caching for incremental PR reviews
+  - Cache AI review results per file + file SHA
+  - On PR updates, only re-review changed files
+  - Reuse cached results for unchanged files
 - 🚧 Optimize diff parsing for very large changes
 - 🚧 Parallelize file reviews if possible
 - 🚧 Stream AI responses for real-time feedback
 
-### 19. Collaboration Features 🚧
-- 🚧 Support for team review workflows
-- 🚧 Integration with Slack/Discord for notifications
-- 🚧 Review summary reports
-- 🚧 Analytics on review quality and frequency
-
-### 20. Additional AI Providers 🚧
+### 19. Additional AI Providers 🚧
 - 🚧 Implement OpenAI Provider (GPT-4, GPT-4-turbo)
-- 🚧 Implement Google Gemini Provider
+- ✅ Implement Google Gemini Provider (gemini-3-flash-preview, gemini-2.5-flash)
+- 🚧 Implement Groq Provider (free tier, fast inference)
 - 🚧 Add support for switching between providers dynamically
 
-### 21. Project-Specific Configuration 🚧
+### 20. Project-Specific Configuration 🚧
 - 🚧 Support for `.aireview` or `.ai-review.json` file in project root
 - 🚧 Project-specific review guidelines (coding standards, architecture patterns, security requirements)
 - 🚧 Interactive wizard to create project guidelines
 - 🚧 Merge project config with global config (project takes precedence)
 - 🚧 Include project guidelines in AI review prompts for context-aware reviews
 
-### 22. Testing Infrastructure 🚧
+### 21. Testing Infrastructure 🚧
 - 🚧 Unit tests for configuration management
 - 🚧 Unit tests for AI provider abstraction and implementations
 - 🚧 Unit tests for platform adapter interface

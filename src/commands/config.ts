@@ -3,11 +3,13 @@ import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { getConfig, setConfig, deleteConfig, listConfig, ConfigSchema, getConfigInfo, getConfigScope } from '../config/manager';
 import { SUCCESS_COLOR, ERROR_COLOR, WARNING_COLOR, SECONDARY_COLOR, HIGHLIGHT_COLOR } from '../utils/colors';
+import { STRICTNESS_LEVELS } from '../utils/strictness';
 
 const VALID_KEYS: Array<keyof ConfigSchema> = [
   'provider',
   'api-key',
   'platform',
+  'review-strictness',
   'google-model',
   'bitbucket-workspace',
   'bitbucket-repo-slug',
@@ -23,7 +25,7 @@ export const configCommand = new Command('config')
 
 configCommand
   .command('set <key> [value]')
-  .description('Set a configuration value. Valid keys: provider, api-key, platform, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-username, bitbucket-app-password. Omit value for interactive input.')
+  .description('Set a configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-username, bitbucket-app-password. Omit value for interactive input.')
   .action(async (key: string, value?: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));
@@ -107,6 +109,41 @@ configCommand
       value = selectedModel;
     }
 
+    // Interactive review strictness selection
+    if (key === 'review-strictness' && !value) {
+      const { selectedStrictness } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'selectedStrictness',
+          message: 'Select review strictness:',
+          choices: [
+            {
+              name: `${STRICTNESS_LEVELS.easy.doom} (easy) - ${STRICTNESS_LEVELS.easy.description}`,
+              value: 'easy',
+            },
+            {
+              name: `${STRICTNESS_LEVELS.normal.doom} (normal) - ${STRICTNESS_LEVELS.normal.description}`,
+              value: 'normal',
+            },
+            {
+              name: `${STRICTNESS_LEVELS.balanced.doom} (balanced) - ${STRICTNESS_LEVELS.balanced.description}`,
+              value: 'balanced',
+            },
+            {
+              name: `${STRICTNESS_LEVELS.strict.doom} (strict) - ${STRICTNESS_LEVELS.strict.description}`,
+              value: 'strict',
+            },
+            {
+              name: `${STRICTNESS_LEVELS.pedantic.doom} (pedantic) - ${STRICTNESS_LEVELS.pedantic.description}`,
+              value: 'pedantic',
+            },
+          ],
+          default: 'balanced',
+        },
+      ]);
+      value = selectedStrictness;
+    }
+
     // For api-key, require value
     if (key === 'api-key' && !value) {
       const { apiKey } = await inquirer.prompt([
@@ -158,7 +195,7 @@ configCommand
 
 configCommand
   .command('get <key>')
-  .description('Get a specific configuration value. Valid keys: provider, api-key, platform, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-username, bitbucket-app-password.')
+  .description('Get a specific configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-username, bitbucket-app-password.')
   .action((key: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));
@@ -209,7 +246,7 @@ function maskApiKey(key: string): string {
 
 configCommand
   .command('delete <key>')
-  .description('Remove a configuration value. Valid keys: provider, api-key, platform, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-username, bitbucket-app-password.')
+  .description('Remove a configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-username, bitbucket-app-password.')
   .action((key: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));

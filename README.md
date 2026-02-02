@@ -29,6 +29,50 @@ This will simulate a complete review workflow with example PRs.
 npm install -g ai-code-review
 ```
 
+## Local Installation (Development)
+
+To install and test the tool locally without publishing to npm:
+
+```bash
+# Clone the repository
+git clone https://github.com/YOUR_USERNAME/ai-code-review.git
+cd ai-code-review
+
+# Install dependencies
+npm install
+
+# Build the project
+npm run build
+
+# Create global symlink
+npm link
+```
+
+Now you can use `ai-review` command anywhere on your system. Changes you make will be reflected after rebuilding.
+
+**Verify Installation:**
+
+```bash
+which ai-review
+ai-review --help
+```
+
+**Uninstall:**
+
+```bash
+npm unlink -g ai-code-review
+```
+
+**Development Workflow:**
+
+```bash
+# Make code changes
+npm run build      # Rebuild
+
+# Or use watch mode
+npm run dev        # Auto-rebuild on changes
+```
+
 ## Quick Start
 
 ### 1. Run Setup Wizard
@@ -44,6 +88,7 @@ This interactive wizard will guide you through:
 1. Selecting your AI provider (Claude / Google Gemini)
 2. Entering your AI provider API key
 3. Choosing your git platform (GitHub / Bitbucket)
+   - **Note:** Bitbucket requires local config (workspace/repo needed) - use `ai-review init` in your repository
 4. Platform-specific setup (workspace, repo, API token for Bitbucket)
 5. Optional: Review strictness level (easy, normal, balanced, strict, pedantic)
 
@@ -51,13 +96,14 @@ This interactive wizard will guide you through:
 
 **Anthropic (Claude):**
 - Visit https://console.anthropic.com/
-- Go to API Keys section
+- Go to API Keys section https://platform.claude.com/settings/keys
 - Create a new API key
 - Copy and paste it into the setup wizard
+- Purchase credits
 
 **Google (Gemini) - Free Tier:**
 - Visit https://aistudio.google.com/
-- Click "Get API key" in the menu
+- Go to API Keys section https://aistudio.google.com/api-keys 
 - Create a new API key (no credit card required)
 - Copy and paste it into the setup wizard
 - Select your preferred model:
@@ -92,6 +138,8 @@ gh auth login
 
 **For Bitbucket:**
 
+**Important:** Bitbucket requires local configuration (workspace/repo specific). Run `ai-review init` inside your git repository.
+
 Create an API Token with required permissions:
 - **Repositories**: Read, Write
 - **Pull requests**: Read, Write
@@ -102,45 +150,6 @@ Create an API Token with required permissions:
 - Uses Bearer authentication
 
 **Note:** App Passwords are deprecated and not supported. Creation disabled September 9, 2025; stops working June 9, 2026.
-
-### 4. Review a Pull Request
-
-**Interactive mode (lists all open PRs):**
-```bash
-ai-review pr
-```
-
-**Review specific PR:**
-```bash
-ai-review pr 342
-```
-
-**Review with specific strictness level:**
-```bash
-ai-review pr 342 --strictness pedantic
-ai-review pr 342 -s easy
-```
-
-**Auto-post accepted comments:**
-```bash
-ai-review pr 342 --post
-```
-
-**Preview comments without posting:**
-```bash
-ai-review pr 342 --dry-run
-```
-
-**Enable verbose logging for debugging:**
-```bash
-# Enable all verbose logging
-ai-review pr --verbose
-
-# Enable specific categories
-ai-review pr --verbose=api          # API requests/responses
-ai-review pr --verbose=api-detailed # Full API details (URLs, headers, payloads)
-ai-review pr -v=config,platform     # Config and platform operations
-```
 
 ## Usage
 
@@ -197,6 +206,7 @@ ai-review init --global
 ```
 - Stored at: `~/.config/ai-code-review-nodejs/config.json` (Linux) or `~/Library/Preferences/ai-code-review-nodejs/config.json` (macOS)
 - Used as fallback when no local config exists
+- **Note:** GitHub only - Bitbucket requires local config (workspace/repo specific)
 
 **Local Configuration (Per-Project):**
 ```bash
@@ -249,6 +259,35 @@ Local config will only apply when running commands from ~/current-directory/
 If you have git repos inside this directory, they will NOT use this config.
 
 ? Create local config anyway? (y/N)
+```
+
+### Review a Pull Request
+
+**Interactive mode (lists all open PRs):**
+```bash
+ai-review pr
+```
+
+**Review specific PR:**
+```bash
+ai-review pr 342
+```
+
+**Review with specific strictness level:**
+```bash
+ai-review pr 342 --strictness pedantic
+ai-review pr 342 -s easy
+```
+
+**Auto-post accepted comments:**
+```bash
+ai-review pr 342 --post
+```
+
+**Preview comments without posting:**
+```bash
+ai-review pr 342 --dry-run
+#Will prompt user on finish whether one wants to save results in REVIEW.md file
 ```
 
 ### Review Strictness Levels
@@ -590,11 +629,7 @@ Available categories: `api`, `api-detailed`, `config`, `prompt`, `diff`, `platfo
 
 ## Development Setup
 
-**Clone the repository:**
-```bash
-git clone https://github.com/YOUR_USERNAME/ai-code-review.git
-cd ai-code-review
-```
+**Clone the repository and navigate to the project's directory**
 
 **Install dependencies:**
 ```bash
@@ -606,16 +641,12 @@ npm install
 npm run build
 ```
 
-**Link locally for testing:**
+**Link locally:**
 ```bash
 npm link
 ```
 
-**Watch mode for development:**
+**Run:**
 ```bash
-npm run dev
+ai-review help
 ```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit issues and pull requests.

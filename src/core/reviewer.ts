@@ -266,19 +266,86 @@ LINE: <line number>
 COMMENT: <your review comment>
 ---
 
-Use multi-line format (START_LINE to END_LINE) for:
-- Functions, loops, conditionals, try-catch blocks
-- JSX elements spanning multiple lines
-- Any issue involving a code block
+Use multi-line format (START_LINE to END_LINE) ONLY when:
+- ALL lines between START_LINE and END_LINE have '+' prefix (no gaps with space or '-')
+- Example: Lines 10,11,12,13 all have '+' → valid range 10-13
+- Example: Lines 10,11 have '+', line 12 has space, line 13 has '+' → INVALID range, use separate comments
 
 Use single-line format (LINE) for:
-- Issues isolated to one specific line
-- Simple typos, wrong values, or syntax errors on a single line
+- A single line with '+' prefix
+- When changed lines are not consecutive (have unchanged lines between them)
 
-Important:
-- Ensure line numbers point to the actual code you're discussing
-- For multi-line: START_LINE = first line of block, END_LINE = last line of block
-- For single-line: LINE = the line containing the issue
+RULE: If ANY line in your range does NOT have '+' prefix, you CANNOT use that range.
+Split into separate comments for each group of consecutive '+' lines instead.
+
+CRITICAL - UNDERSTANDING THE DIFF FORMAT:
+In the diff above:
+- Lines with '+' prefix = ADDED/MODIFIED code in the NEW version - THESE ARE THE ONLY LINES YOU SHOULD COMMENT ON
+- Lines with '-' prefix = REMOVED code from the OLD version - do not comment on these
+- Lines with ' ' (space) prefix = UNCHANGED context lines - NEVER comment on these
+  * This includes BLANK/EMPTY lines with space prefix - they are still unchanged!
+  * This includes code lines with space prefix - they are still unchanged!
+
+The line numbers you see in the diff:
+- For '+' lines: line number in the NEW file (after PR changes) - ONLY THESE ARE VALID
+- For ' ' lines: also in the NEW file, but UNCHANGED - NEVER use these numbers
+- For '-' lines: line number in the OLD file (before PR changes) - NEVER use these numbers
+
+WARNING: Even if a blank line (space prefix) appears between changed code you're discussing,
+you CANNOT use that blank line's number. Use the actual '+' line number instead.
+
+MANDATORY RULE - ONLY COMMENT ON CHANGED CODE:
+- Your line numbers (LINE, START_LINE, END_LINE) MUST point to lines that have '+' prefix in the diff
+- DO NOT use line numbers of unchanged context lines (lines with space prefix)
+- DO NOT comment on code that wasn't modified in this PR
+- When you see an issue, find the '+' line in the diff and use THAT line number
+
+Example - CORRECT:
+Diff shows:   98 │ +  [some code here]
+Your comment: LINE: 98 ✓ (has '+' prefix)
+
+Example - WRONG:
+Diff shows:   42 │    [some code here]
+Your comment: LINE: 42 ✗ (has space prefix = unchanged, invalid!)
+
+Example - Multi-line CORRECT:
+  50 │ +  [code]
+  51 │ +  [code]
+  52 │ +  [code]
+Valid: START_LINE: 50, END_LINE: 52 ✓ (all have '+')
+
+Example - Multi-line WRONG:
+  60 │ +  [code]
+  61 │    [code]  ← unchanged line with space prefix!
+  62 │ +  [code]
+Invalid: START_LINE: 60, END_LINE: 62 ✗ (line 61 has space, breaks the chain!)
+Correct approach: Two separate comments (LINE: 60 and LINE: 62)
+
+Example - Common mistake with blank lines:
+  60 │ +  [code]
+  61 │    [unchanged code]
+  62 │      ← blank line with space prefix (unchanged!)
+  63 │ +  [code you want to comment on]
+Wrong: LINE: 62 ✗ (blank but has space prefix = unchanged!)
+Correct: LINE: 63 ✓ (has the actual changed code with '+' prefix)
+
+MANDATORY VERIFICATION - DO THIS FOR EVERY SINGLE COMMENT:
+Step 1: Identify the issue you want to comment on
+Step 2: Find the EXACT line(s) in the diff that contain the problematic code
+Step 3: Look at the prefix of each line - it MUST be '+'
+Step 4: Write down the line number(s)
+Step 5: DOUBLE-CHECK: Go back to the diff and verify that line has '+' prefix
+Step 6: If the line has ' ' or '-' prefix, FIND THE NEAREST '+' LINE instead
+
+Common mistakes to avoid:
+✗ Line 62 is blank with space prefix → "I'll comment on line 62" - WRONG!
+✓ Line 63 has the actual changed code with '+' → "I'll comment on line 63" - CORRECT!
+
+✗ "This change affects lines 60-65" → Lines 61,62 have space prefix - WRONG!
+✓ "This change affects lines 60,63,64,65" → Only these have '+' - CORRECT! (use separate comments)
+
+Remember: You are reviewing THE CHANGES in this PR, not the entire codebase.
+Your line numbers MUST point to lines with '+' prefix. NO EXCEPTIONS.
 
 If the code looks good and has no issues, respond with: "LGTM - No issues found."`;
 }

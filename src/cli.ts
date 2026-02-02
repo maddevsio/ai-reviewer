@@ -12,17 +12,20 @@ program
   .version('0.1.0')
   .addHelpText('after', `
 Examples:
-  $ ai-review demo                    # Try demo mode with mock data (no setup required)
-  $ ai-review init                    # Run setup wizard (local config in git repo)
-  $ ai-review init --global           # Create global config (user-wide)
-  $ ai-review pr                      # Review PR (interactive selection)
-  $ ai-review pr 342                  # Review specific PR #342
-  $ ai-review pr 342 --post           # Auto-post accepted comments
-  $ ai-review pr 342 --dry-run        # Preview comments without posting
-  $ ai-review config list             # Show current configuration & source
-  $ ai-review config set provider     # Set AI provider (interactive)
-  $ ai-review config set api-key      # Set API key (interactive)
-  $ ai-review config set platform     # Set git platform (interactive)
+  $ ai-review demo                         # Try demo mode with mock data (no setup required)
+  $ ai-review init                         # Run setup wizard (local config in git repo)
+  $ ai-review init --global                # Create global config (user-wide)
+  $ ai-review pr                           # Review PR (interactive selection)
+  $ ai-review pr 342                       # Review specific PR #342
+  $ ai-review pr 342 --post                # Auto-post accepted comments
+  $ ai-review pr 342 --dry-run             # Preview comments without posting
+  $ ai-review pr 342 -s strict             # Review with strict strictness level
+  $ ai-review pr --verbose                 # Enable all verbose logging
+  $ ai-review pr --verbose=api,config      # Enable specific logging categories
+  $ ai-review config list                  # Show current configuration & source
+  $ ai-review config set provider          # Set AI provider (interactive)
+  $ ai-review config set api-key           # Set API key (interactive)
+  $ ai-review config set platform          # Set git platform (interactive)
 
 Commands:
   demo [id]        Try the tool with mock data (no setup required)
@@ -41,8 +44,12 @@ Commands:
 
   pr [id]          Review pull requests with AI assistance
     Options:
-      --post       Automatically post accepted comments without confirmation
-      --dry-run    Preview what comments would be posted without posting them
+      --post                   Automatically post accepted comments without confirmation
+      --dry-run                Preview what comments would be posted without posting them
+      -s, --strictness <level> Review strictness: easy, normal, balanced, strict, pedantic
+      -v, --verbose [cats]     Enable verbose logging (optional: specify categories)
+                               Categories: api, api-detailed, config, prompt, diff, platform
+                               Examples: --verbose  OR  --verbose=api,config
 
   config <action>  Manage configuration settings
                    Uses hierarchical resolution: local > global > defaults

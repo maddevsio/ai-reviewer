@@ -137,10 +137,16 @@ export const initCommand = new Command('init')
             name: `${chalk.hex(SUCCESS_COLOR)('✓')} GitHub - Available`,
             value: 'github',
           },
-          {
-            name: `${chalk.hex(SUCCESS_COLOR)('✓')} Bitbucket - Available`,
-            value: 'bitbucket',
-          },
+          configScope === 'global'
+            ? {
+                name: chalk.hex(SECONDARY_COLOR)('Bitbucket - Requires local config (workspace/repo needed)'),
+                value: 'bitbucket',
+                disabled: true,
+              }
+            : {
+                name: `${chalk.hex(SUCCESS_COLOR)('✓')} Bitbucket - Available`,
+                value: 'bitbucket',
+              },
           {
             name: chalk.hex(SECONDARY_COLOR)('🚧 GitLab - Coming soon'),
             value: 'gitlab',

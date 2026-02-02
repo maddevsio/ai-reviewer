@@ -3,6 +3,7 @@ import inquirer from 'inquirer';
 import { displayCodeContext } from './code-display';
 import { getCodeContext, isLineInDiff } from './diff-parser';
 import { askYesNo, askConfirmation } from './prompts';
+import { exportToReviewFile } from './review-export';
 import {
   ADDED_LINE_BG,
   REMOVED_LINE_BG,
@@ -120,7 +121,7 @@ export async function reviewCommentsInteractively(
     console.log(chalk.hex(SECONDARY_COLOR)('AI Comment:'), comment.comment);
     console.log();
 
-    // Dry-run mode: simplified menu
+    // Dry-run mode: Accept/Discard menu
     if (options.dryRun) {
       const { action } = await inquirer.prompt([
         {
@@ -128,7 +129,8 @@ export async function reviewCommentsInteractively(
           name: 'action',
           message: 'What would you like to do?',
           choices: [
-            { name: 'Next', value: 'next' },
+            { name: 'Accept (include in export)', value: 'accept' },
+            { name: 'Discard (exclude from export)', value: 'discard' },
             { name: 'Quit review', value: 'quit' },
           ],
         },
@@ -137,6 +139,11 @@ export async function reviewCommentsInteractively(
       if (action === 'quit') {
         console.log(chalk.hex(INFO_COLOR)('\nReview cancelled'));
         return { acceptedComments: [], cancelled: true };
+      } else if (action === 'accept') {
+        acceptedComments.push(comment);
+        console.log(chalk.hex(SUCCESS_COLOR)('✓ Comment accepted for export'));
+      } else if (action === 'discard') {
+        console.log(chalk.hex(WARNING_COLOR)('⊘ Comment discarded'));
       }
       // Continue to next comment
     } else {
@@ -202,9 +209,24 @@ export async function askPostCommentsDecision(
   prId: string,
   options: ReviewOptions
 ): Promise<PostCommentsDecision> {
-  // Dry-run mode: exit early
+  // Dry-run mode: ask about export instead
   if (options.dryRun) {
     console.log(chalk.hex(WARNING_COLOR)('\n⚠ Dry run mode - comments not posted'));
+
+    if (acceptedComments.length === 0) {
+      console.log(chalk.hex(SECONDARY_COLOR)('No comments accepted for export'));
+      return { shouldPost: false, hasPendingComments: false };
+    }
+
+    const shouldExport = await askYesNo(`Export ${acceptedComments.length} comment(s) to REVIEW.md?`);
+
+    if (shouldExport) {
+      await exportToReviewFile(acceptedComments, prId);
+      console.log(chalk.hex(SUCCESS_COLOR)(`✓ Review exported to REVIEW.md`));
+    } else {
+      console.log(chalk.hex(SECONDARY_COLOR)('Export cancelled'));
+    }
+
     return { shouldPost: false, hasPendingComments: false };
   }
 

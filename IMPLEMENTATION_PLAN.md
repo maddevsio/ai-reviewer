@@ -383,10 +383,6 @@ A CLI tool that performs AI-powered code reviews on pull requests from GitHub, G
   - **NOTE**: Current package name is `ai-code-review` (command: `ai-review`)
   - Both `ai-review` and `ai-reviewer` are already taken on npm
   - Consider alternatives before publishing: scoped package `@username/ai-review`, `claude-code-review`, `ai-pr-review`, etc.
-- 🚧 Publish to PyPI (if Python)
-- 🚧 Create Homebrew formula (for macOS)
-- 🚧 Create apt/yum packages (for Linux)
-- 🚧 Build Windows installer
 
 #### 12.3 Setup Versioning 🚧
 - 🚧 Use semantic versioning (semver)

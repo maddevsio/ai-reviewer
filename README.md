@@ -87,9 +87,11 @@ ai-review init --global
 This interactive wizard will guide you through:
 1. Selecting your AI provider (Claude / Google Gemini)
 2. Entering your AI provider API key
-3. Choosing your git platform (GitHub / Bitbucket)
+3. Choosing your git platform (GitHub / Bitbucket / GitLab)
    - **Note:** Bitbucket requires local config (workspace/repo needed) - use `ai-review init` in your repository
-4. Platform-specific setup (workspace, repo, API token for Bitbucket)
+4. Platform-specific setup:
+   - **Bitbucket**: workspace, repo slug, API token
+   - **GitLab**: project ID, Personal Access Token, instance URL (optional)
 5. Optional: Review strictness level (easy, normal, balanced, strict, pedantic)
 
 ### 2. Get Your API Key
@@ -150,6 +152,21 @@ Create an API Token with required permissions:
 - Uses Bearer authentication
 
 **Note:** App Passwords are deprecated and not supported. Creation disabled September 9, 2025; stops working June 9, 2026.
+
+**For GitLab:**
+
+Create a Personal Access Token with required scopes:
+- **api** (full API access) OR
+- **read_api** + **write_repository** (specific scopes)
+
+**Personal Access Token Setup:**
+- Create at: https://gitlab.com/-/user_settings/personal_access_tokens
+- For self-hosted GitLab: `https://your-gitlab-instance.com/-/user_settings/personal_access_tokens`
+- Required scopes: api (or read_api + write_repository)
+- Uses PRIVATE-TOKEN authentication
+
+**Self-Hosted GitLab Support:**
+During setup, you can specify a custom GitLab URL for self-hosted instances (defaults to https://gitlab.com).
 
 ## Usage
 
@@ -524,7 +541,10 @@ OpenAI GPT-4 support is planned for future releases.
 
 **Note:** App Passwords are deprecated and not supported.
 
-**GitLab** - Coming in Phase 3
+**GitLab** - Supported via REST API with Personal Access Tokens (PRIVATE-TOKEN authentication)
+- Create token at: https://gitlab.com/-/user_settings/personal_access_tokens
+- Required scopes: api (or read_api + write_repository)
+- Supports self-hosted GitLab instances
 
 ### How much does it cost?
 
@@ -612,18 +632,19 @@ Available categories: `api`, `api-detailed`, `config`, `prompt`, `diff`, `platfo
 - ✅ Git-aware config detection (auto-finds repo root)
 - ✅ GitHub integration via `gh` CLI and Octokit API
 - ✅ Bitbucket integration via REST API (API Tokens)
+- ✅ GitLab integration via REST API (Personal Access Tokens)
 - ✅ Anthropic (Claude) AI provider
 - ✅ Google (Gemini) AI provider with free tier
 - ✅ Configurable review strictness levels (easy, normal, balanced, strict, pedantic)
 - ✅ Verbose logging with category-based debugging (api, api-detailed, config, prompt, diff, platform)
 - ✅ Full review workflow with interactive comment management
-- ✅ Inline comment posting with line numbers
-- ✅ PR approval/request changes workflow
+- ✅ Inline comment posting with line numbers and multi-line ranges
+- ✅ PR/MR approval/request changes workflow
 - ✅ Demo mode with mock data
 - ✅ Comprehensive CLI help
+- ✅ Self-hosted GitLab support
 
 **Future Plans:**
-- GitLab support
 - OpenAI GPT-4 provider
 - Project-specific review guidelines (`.aireview` file)
 

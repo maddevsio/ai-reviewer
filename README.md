@@ -13,6 +13,17 @@ AI-powered code review CLI tool for pull requests. Get intelligent feedback on y
 - 🔒 **Secure** - API keys are masked and stored locally
 - 🚀 **No Setup Demo** - Try it out with mock data before configuring
 
+## Requirements
+
+- **Node.js** 18 or higher
+- **AI Provider API Key**:
+    - **Anthropic (Claude)**: Paid API key with credits
+    - **Google (Gemini)**: Free API key (subject to rate limits)
+- **Platform-Specific Requirements**:
+    - **GitHub**: GitHub CLI (`gh`) installed and authenticated
+    - **Bitbucket**: API Token with Repositories and Pull requests permissions
+    - **GitLab**: API Access Token with `api` scope (or `read_api` + `write_repository`)
+
 ## Try It First (No Setup Required)
 
 Experience the tool with mock data before setting up API keys:
@@ -241,6 +252,10 @@ ai-review init
 - Stored at: `{repo-root}/.ai-review/config.json`
 - Automatically detected from any subdirectory in the repo
 - Overrides global config when present
+- **Important:** Add `.ai-review/` to your `.gitignore` to avoid committing API keys:
+  ```bash
+  echo ".ai-review/" >> .gitignore
+  ```
 
 **Configuration Priority:**
 1. **Local config** (`.ai-review/config.json` at git repo root) - highest priority
@@ -405,15 +420,6 @@ After reviewing comments, you can:
 - **Skip** - Exit without taking action
 
 All comments and approval status are submitted together in a single review (GitHub) or as individual discussions (GitLab, Bitbucket).
-
-## Requirements
-
-- **Node.js** 18 or higher
-- **AI Provider API Key**:
-  - **Anthropic (Claude)**: Paid API key with credits
-  - **Google (Gemini)**: Free API key (subject to rate limits)
-- **For GitHub**: GitHub CLI (`gh`) installed and authenticated
-- **For Bitbucket**: API Token with Repositories and Pull requests permissions
 
 ## Troubleshooting
 
@@ -588,7 +594,10 @@ ai-review config list
 # Using config from: ~/projects/my-repo/.ai-review/config.json
 ```
 
-**Security Note:** API keys are stored in plain text locally. Keep your config directories secure and add `.ai-review/` to your `.gitignore` if you don't want to commit API keys.
+**Security Note:**
+- API keys are stored in plain text locally. Keep your config directories secure.
+- **Always add `.ai-review/` to your `.gitignore`** to prevent accidentally committing API keys and tokens to version control.
+- Global config is stored in your user directory and is not at risk of being committed.
 
 ### Can I customize the AI's review style?
 

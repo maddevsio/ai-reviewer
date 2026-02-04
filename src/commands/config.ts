@@ -5,6 +5,7 @@ import { getConfig, setConfig, deleteConfig, listConfig, ConfigSchema, getConfig
 import { SUCCESS_COLOR, ERROR_COLOR, WARNING_COLOR, SECONDARY_COLOR, HIGHLIGHT_COLOR } from '../utils/colors';
 import { STRICTNESS_LEVELS } from '../utils/strictness';
 import { PROVIDER_DISPLAY_NAMES, API_KEY_VALIDATION } from '../utils/constants';
+import { configCleanup } from '../utils/config-cleanup';
 
 const VALID_KEYS: Array<keyof ConfigSchema> = [
   'provider',
@@ -83,6 +84,7 @@ configCommand
       // Set the provider first
       const existingScope = getConfigScope(key) || 'global';
       setConfig(key, value as never, existingScope);
+      configCleanup('provider', existingScope);
       console.log(chalk.hex(SUCCESS_COLOR)(`✓ Set ${key} = ${value}`));
 
       // Then set the API key
@@ -237,6 +239,11 @@ configCommand
     // Detect which config scope to update (update existing location, or default to global)
     const existingScope = getConfigScope(key) || 'global';
     setConfig(key, value as never, existingScope);
+
+    // Clean up redundant config when provider or platform changes
+    if (key === 'provider' || key === 'platform') {
+      configCleanup(key, existingScope);
+    }
 
     // Mask sensitive values for display (same format as config list)
     let displayValue = value;

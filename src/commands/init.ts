@@ -7,6 +7,7 @@ import { SUCCESS_COLOR, INFO_COLOR, SECONDARY_COLOR, HIGHLIGHT_COLOR, WARNING_CO
 import { findGitRepoRoot } from '../utils/git';
 import { STRICTNESS_LEVELS } from '../utils/strictness';
 import { PROVIDER_DISPLAY_NAMES, API_KEY_VALIDATION } from '../utils/constants';
+import { configCleanup } from '../utils/config-cleanup';
 
 function getGitHubCLIInstallCommand(): string {
   const os = platform();
@@ -96,6 +97,7 @@ export const initCommand = new Command('init')
     ]);
 
     setConfig('provider', provider as never, configScope);
+    configCleanup('provider', configScope);
     console.log(chalk.hex(SUCCESS_COLOR)(`✓ Provider set to: ${provider}\n`));
 
     // Step 2: API Key
@@ -148,6 +150,7 @@ export const initCommand = new Command('init')
     ]);
 
     setConfig('platform', gitPlatform as never, configScope);
+    configCleanup('platform', configScope);
     console.log(chalk.hex(SUCCESS_COLOR)(`✓ Platform set to: ${gitPlatform}\n`));
 
     // Step 4: Google-specific configuration

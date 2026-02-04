@@ -168,6 +168,11 @@ export async function reviewPullRequest(
       })
     : [];
 
+  // Format commit SHAs for GitLab (base:start:head)
+  const commitShaForPlatform = prDetails.baseSha && prDetails.startSha
+    ? `${prDetails.baseSha}:${prDetails.startSha}:${prDetails.headSha}`
+    : prDetails.headSha;
+
   await handlePRApprovalWorkflow(
     decision,
     {
@@ -180,7 +185,7 @@ export async function reviewPullRequest(
             body: 'Looks good!',
             comments: commentsForSubmission,
           },
-          prDetails.headSha
+          commitShaForPlatform
         );
         spinner.succeed(chalk.hex(SUCCESS_COLOR)(`PR #${prId} approved ✓`));
       },
@@ -193,7 +198,7 @@ export async function reviewPullRequest(
             body,
             comments: commentsForSubmission,
           },
-          prDetails.headSha
+          commitShaForPlatform
         );
         spinner.succeed(chalk.hex(SUCCESS_COLOR)(`Changes requested for PR #${prId}`));
       },
@@ -203,10 +208,10 @@ export async function reviewPullRequest(
           prId!,
           {
             action: 'COMMENT',
-            body: 'Review comments.',
+            body: undefined, // No general comment, just post inline discussions
             comments: commentsForSubmission,
           },
-          prDetails.headSha
+          commitShaForPlatform
         );
         spinner.succeed(chalk.hex(SUCCESS_COLOR)(`Review submitted as comments only`));
       },
@@ -218,10 +223,10 @@ export async function reviewPullRequest(
             prId!,
             {
               action: 'COMMENT',
-              body: 'Review comments.',
+              body: undefined, // No general comment, just post inline discussions
               comments: commentsForSubmission,
             },
-            prDetails.headSha
+            commitShaForPlatform
           );
           spinner.succeed(chalk.hex(SUCCESS_COLOR)(`Posted ${acceptedComments.length} comment(s) to PR #${prId}`));
         } else {

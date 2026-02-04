@@ -2,10 +2,11 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { platform } from 'os';
-import { setConfig, listConfig, getConfigInfo } from '../config/manager';
+import { setConfig, listConfig, getConfigInfo, AIProvider } from '../config/manager';
 import { SUCCESS_COLOR, INFO_COLOR, SECONDARY_COLOR, HIGHLIGHT_COLOR, WARNING_COLOR } from '../utils/colors';
 import { findGitRepoRoot } from '../utils/git';
 import { STRICTNESS_LEVELS } from '../utils/strictness';
+import { PROVIDER_DISPLAY_NAMES, API_KEY_VALIDATION } from '../utils/constants';
 
 function getGitHubCLIInstallCommand(): string {
   const os = platform();
@@ -98,7 +99,7 @@ export const initCommand = new Command('init')
     console.log(chalk.hex(SUCCESS_COLOR)(`✓ Provider set to: ${provider}\n`));
 
     // Step 2: API Key
-    const providerName = provider === 'anthropic' ? 'Anthropic' : provider === 'google' ? 'Google' : provider;
+    const providerName = PROVIDER_DISPLAY_NAMES[provider as AIProvider];
     const { apiKey } = await inquirer.prompt([
       {
         type: 'password',
@@ -109,16 +110,7 @@ export const initCommand = new Command('init')
           if (!input || input.trim().length === 0) {
             return 'API key is required';
           }
-          if (provider === 'anthropic' && !input.startsWith('sk-ant-')) {
-            return 'Anthropic API keys should start with "sk-ant-"';
-          }
-          if (provider === 'google' && !input.startsWith('AIza')) {
-            return 'Google API keys should start with "AIza"';
-          }
-          if (provider === 'openai' && !input.startsWith('sk-')) {
-            return 'OpenAI API keys should start with "sk-"';
-          }
-          return true;
+          return API_KEY_VALIDATION[provider as AIProvider].validate(input);
         },
       },
     ]);
@@ -148,9 +140,8 @@ export const initCommand = new Command('init')
                 value: 'bitbucket',
               },
           {
-            name: chalk.hex(SECONDARY_COLOR)('🚧 GitLab - Coming soon'),
+            name: `${chalk.hex(SUCCESS_COLOR)('✓')} GitLab - Available`,
             value: 'gitlab',
-            disabled: true,
           },
         ],
       },
@@ -248,6 +239,84 @@ export const initCommand = new Command('init')
       console.log(chalk.hex(INFO_COLOR)('   Create at: https://bitbucket.org/account/settings/api-tokens/\n'));
     }
 
+    // Step 5b: GitLab-specific configuration
+    if (gitPlatform === 'gitlab') {
+      console.log(chalk.hex(INFO_COLOR)('GitLab requires additional configuration:\n'));
+
+      const { gitlabNamespace } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'gitlabNamespace',
+          message: 'Enter your GitLab namespace (username or group, e.g., "myusername"):',
+          validate: (input: string) => {
+            if (!input || input.trim().length === 0) {
+              return 'Namespace is required';
+            }
+            return true;
+          },
+        },
+      ]);
+
+      const { gitlabProject } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'gitlabProject',
+          message: 'Enter your GitLab project name (e.g., "my-repo"):',
+          validate: (input: string) => {
+            if (!input || input.trim().length === 0) {
+              return 'Project name is required';
+            }
+            return true;
+          },
+        },
+      ]);
+
+      // Concatenate namespace and project name to form project ID
+      const gitlabProjectId = `${gitlabNamespace}/${gitlabProject}`;
+      setConfig('gitlab-project-id', gitlabProjectId as never, configScope);
+      console.log(chalk.hex(SUCCESS_COLOR)(`✓ Project ID set to: ${gitlabProjectId}\n`));
+
+      const { gitlabToken } = await inquirer.prompt([
+        {
+          type: 'password',
+          name: 'gitlabToken',
+          message: 'Enter your GitLab Personal Access Token:',
+          mask: '*',
+          validate: (input: string) => {
+            if (!input || input.trim().length === 0) {
+              return 'Personal Access Token is required';
+            }
+            return true;
+          },
+        },
+      ]);
+
+      setConfig('gitlab-token', gitlabToken as never, configScope);
+      console.log(chalk.hex(SUCCESS_COLOR)('✓ GitLab Personal Access Token saved\n'));
+
+      const { gitlabUrl } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'gitlabUrl',
+          message: 'Enter your GitLab instance URL (leave empty for https://gitlab.com):',
+          default: 'https://gitlab.com',
+        },
+      ]);
+
+      if (gitlabUrl && gitlabUrl.trim().length > 0) {
+        setConfig('gitlab-url', gitlabUrl as never, configScope);
+        console.log(chalk.hex(SUCCESS_COLOR)(`✓ GitLab URL set to: ${gitlabUrl}\n`));
+      } else {
+        console.log(chalk.hex(SECONDARY_COLOR)('✓ Using default GitLab URL: https://gitlab.com\n'));
+      }
+
+      // Info about Personal Access Token
+      console.log(chalk.hex(INFO_COLOR)('ℹ️  Personal Access Token scopes required:'));
+      console.log(chalk.hex(INFO_COLOR)('   - api (full API access)'));
+      console.log(chalk.hex(INFO_COLOR)('   Or specific scopes: read_api, write_repository'));
+      console.log(chalk.hex(INFO_COLOR)('   Create at: https://gitlab.com/-/user_settings/personal_access_tokens\n'));
+    }
+
     // Step 6: Review strictness (optional)
     console.log(chalk.hex(INFO_COLOR)('Review strictness configuration (optional):\n'));
 
@@ -327,6 +396,13 @@ export const initCommand = new Command('init')
       console.log(chalk.hex(SECONDARY_COLOR)('      - Pull requests: Read, Write'));
       console.log(chalk.hex(SECONDARY_COLOR)('   2. Create API Token at: https://bitbucket.org/account/settings/api-tokens/'));
       console.log(chalk.hex(SECONDARY_COLOR)('   3. Navigate to a repo with PRs'));
+      console.log(chalk.hex(SECONDARY_COLOR)('   4. Run: ai-review pr\n'));
+    } else if (gitPlatform === 'gitlab') {
+      console.log(chalk.hex(SECONDARY_COLOR)('   1. Your Personal Access Token must have the following scopes:'));
+      console.log(chalk.hex(SECONDARY_COLOR)('      - api (full API access)'));
+      console.log(chalk.hex(SECONDARY_COLOR)('      - Or specific: read_api, write_repository'));
+      console.log(chalk.hex(SECONDARY_COLOR)('   2. Create token at: https://gitlab.com/-/user_settings/personal_access_tokens'));
+      console.log(chalk.hex(SECONDARY_COLOR)('   3. Navigate to a repo with merge requests'));
       console.log(chalk.hex(SECONDARY_COLOR)('   4. Run: ai-review pr\n'));
     }
   });

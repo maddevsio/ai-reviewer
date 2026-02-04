@@ -1,9 +1,10 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { getConfig, setConfig, deleteConfig, listConfig, ConfigSchema, getConfigInfo, getConfigScope } from '../config/manager';
+import { getConfig, setConfig, deleteConfig, listConfig, ConfigSchema, getConfigInfo, getConfigScope, AIProvider } from '../config/manager';
 import { SUCCESS_COLOR, ERROR_COLOR, WARNING_COLOR, SECONDARY_COLOR, HIGHLIGHT_COLOR } from '../utils/colors';
 import { STRICTNESS_LEVELS } from '../utils/strictness';
+import { PROVIDER_DISPLAY_NAMES, API_KEY_VALIDATION } from '../utils/constants';
 
 const VALID_KEYS: Array<keyof ConfigSchema> = [
   'provider',
@@ -14,6 +15,9 @@ const VALID_KEYS: Array<keyof ConfigSchema> = [
   'bitbucket-workspace',
   'bitbucket-repo-slug',
   'bitbucket-app-password',
+  'gitlab-token',
+  'gitlab-project-id',
+  'gitlab-url',
 ];
 
 function isValidConfigKey(key: string): key is keyof ConfigSchema {
@@ -25,7 +29,7 @@ export const configCommand = new Command('config')
 
 configCommand
   .command('set <key> [value]')
-  .description('Set a configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-username, bitbucket-app-password. Omit value for interactive input.')
+  .description('Set a configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-app-password, gitlab-token, gitlab-project-id, gitlab-url. Omit value for interactive input.')
   .action(async (key: string, value?: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));
@@ -58,6 +62,37 @@ configCommand
         },
       ]);
       value = selectedProvider;
+
+      // Automatically prompt for API key after provider selection
+      const providerName = PROVIDER_DISPLAY_NAMES[value as AIProvider];
+      const { newApiKey } = await inquirer.prompt([
+        {
+          type: 'password',
+          name: 'newApiKey',
+          message: `Enter your ${providerName} API key:`,
+          mask: '*',
+          validate: (input: string) => {
+            if (!input || input.trim().length === 0) {
+              return 'API key is required';
+            }
+            return API_KEY_VALIDATION[value as AIProvider].validate(input);
+          },
+        },
+      ]);
+
+      // Set the provider first
+      const existingScope = getConfigScope(key) || 'global';
+      setConfig(key, value as never, existingScope);
+      console.log(chalk.hex(SUCCESS_COLOR)(`✓ Set ${key} = ${value}`));
+
+      // Then set the API key
+      const apiKeyScope = getConfigScope('api-key') || existingScope;
+      setConfig('api-key', newApiKey as never, apiKeyScope);
+      const maskedKey = maskApiKey(newApiKey);
+      console.log(chalk.hex(SUCCESS_COLOR)(`✓ Set api-key = ${maskedKey}`));
+
+      // Early return since we've already set both values
+      return;
     }
 
     // Interactive platform selection
@@ -77,9 +112,8 @@ configCommand
               value: 'bitbucket',
             },
             {
-              name: chalk.hex(SECONDARY_COLOR)('🚧 GitLab - Coming soon'),
+              name: `${chalk.hex(SUCCESS_COLOR)('✓')} GitLab - Available`,
               value: 'gitlab',
-              disabled: true,
             },
           ],
         },
@@ -176,6 +210,25 @@ configCommand
       value = bbApiToken;
     }
 
+    // For gitlab-token, require value
+    if (key === 'gitlab-token' && !value) {
+      const { gitlabToken } = await inquirer.prompt([
+        {
+          type: 'password',
+          name: 'gitlabToken',
+          message: 'Enter your GitLab Personal Access Token:',
+          mask: '*',
+          validate: (input: string) => {
+            if (!input || input.trim().length === 0) {
+              return 'Personal Access Token is required';
+            }
+            return true;
+          },
+        },
+      ]);
+      value = gitlabToken;
+    }
+
     if (!value) {
       console.log(chalk.hex(ERROR_COLOR)('✗ Value is required'));
       process.exit(1);
@@ -187,7 +240,7 @@ configCommand
 
     // Mask sensitive values for display (same format as config list)
     let displayValue = value;
-    if (key === 'api-key' || key === 'bitbucket-app-password') {
+    if (key === 'api-key' || key === 'bitbucket-app-password' || key === 'gitlab-token') {
       displayValue = maskApiKey(value);
     }
     console.log(chalk.hex(SUCCESS_COLOR)(`✓ Set ${key} = ${displayValue}`));
@@ -195,7 +248,7 @@ configCommand
 
 configCommand
   .command('get <key>')
-  .description('Get a specific configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-username, bitbucket-app-password.')
+  .description('Get a specific configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-app-password, gitlab-token, gitlab-project-id, gitlab-url.')
   .action((key: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));
@@ -229,7 +282,7 @@ configCommand
     } else {
       console.log(chalk.bold('Current Configuration:'));
       for (const [key, value] of Object.entries(config)) {
-        const displayValue = (key === 'api-key' || key === 'bitbucket-app-password') && value ? maskApiKey(value) : value;
+        const displayValue = (key === 'api-key' || key === 'bitbucket-app-password' || key === 'gitlab-token') && value ? maskApiKey(value) : value;
         console.log(`  ${chalk.hex(HIGHLIGHT_COLOR)(key)}: ${displayValue}`);
       }
     }
@@ -246,7 +299,7 @@ function maskApiKey(key: string): string {
 
 configCommand
   .command('delete <key>')
-  .description('Remove a configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-username, bitbucket-app-password.')
+  .description('Remove a configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-app-password, gitlab-token, gitlab-project-id, gitlab-url.')
   .action((key: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));

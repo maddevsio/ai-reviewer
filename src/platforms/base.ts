@@ -27,6 +27,8 @@ export interface PullRequestDetails {
   files: FileChange[];
   comments: Comment[];
   headSha: string; // Commit SHA of the PR head
+  baseSha?: string; // Base commit SHA (for GitLab positioning)
+  startSha?: string; // Start commit SHA (for GitLab positioning)
 }
 
 export interface FileChange {
@@ -58,7 +60,7 @@ export type ReviewAction = 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT';
 
 export interface ReviewSubmission {
   action: ReviewAction;
-  body: string;
+  body?: string; // Optional - only for general review comments
   comments: CommentInput[];
 }
 

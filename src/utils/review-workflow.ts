@@ -267,6 +267,9 @@ export async function askPRApprovalDecision(
   options: ReviewOptions,
   platformName?: string
 ): Promise<PRApprovalDecision> {
+  // GitLab doesn't support "Request changes" via public API
+  const supportsRequestChanges = platformName !== 'GitLab';
+
   // With --post flag, only show approve/skip (automated flow)
   // Otherwise, show full menu when comments are pending
   const menuChoices = options.post
@@ -277,7 +280,7 @@ export async function askPRApprovalDecision(
     : hasPendingComments
     ? [
         { name: 'Approve PR', value: 'approve' },
-        { name: 'Request changes', value: 'request_changes' },
+        ...(supportsRequestChanges ? [{ name: 'Request changes', value: 'request_changes' }] : []),
         { name: 'Comment only (no approval status)', value: 'comment' },
         { name: 'Skip (do nothing)', value: 'skip' },
       ]
@@ -297,6 +300,8 @@ export async function askPRApprovalDecision(
 
   // If requesting changes, prompt for body message (GitHub requires it, Bitbucket doesn't)
   if (reviewAction === 'request_changes') {
+    // Note: GitLab doesn't support "Request changes" via public API, so this won't be reached for GitLab
+
     // Bitbucket: inline comments are sufficient, no body message needed
     if (platformName === 'Bitbucket') {
       return { action: reviewAction };

@@ -21,6 +21,10 @@ export interface ConfigSchema {
   'bitbucket-repo-slug'?: string;
   'bitbucket-username'?: string;
   'bitbucket-app-password'?: string;
+  // GitLab-specific fields
+  'gitlab-token'?: string;
+  'gitlab-project-id'?: string;
+  'gitlab-url'?: string;
 }
 
 // Global configuration store (using conf package)

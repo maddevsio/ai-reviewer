@@ -91,7 +91,7 @@ This interactive wizard will guide you through:
    - **Note:** Bitbucket requires local config (workspace/repo needed) - use `ai-review init` in your repository
 4. Platform-specific setup:
    - **Bitbucket**: workspace, repo slug, API token
-   - **GitLab**: project ID, Personal Access Token, instance URL (optional)
+   - **GitLab**: namespace, project name, Personal Access Token, instance URL (optional)
 5. Optional: Review strictness level (easy, normal, balanced, strict, pedantic)
 
 ### 2. Get Your API Key
@@ -154,6 +154,11 @@ Create an API Token with required permissions:
 **Note:** App Passwords are deprecated and not supported. Creation disabled September 9, 2025; stops working June 9, 2026.
 
 **For GitLab:**
+
+The setup wizard will prompt you for:
+- **Namespace**: Your GitLab username or group name (e.g., "myusername")
+- **Project name**: Your repository name (e.g., "my-repo")
+- These will be combined into a project ID like "myusername/my-repo"
 
 Create a Personal Access Token with required scopes:
 - **api** (full API access) OR
@@ -395,10 +400,11 @@ After reviewing comments, you can:
 
 - **Approve PR** - Mark PR as approved (requires confirmation)
 - **Request changes** - Ask for specific changes (requires summary message + confirmation)
+  - **GitLab limitation:** Not available for GitLab MRs due to public API restrictions
 - **Comment only** - Post review comments without approval status
 - **Skip** - Exit without taking action
 
-All comments and approval status are submitted together in a single GitHub review.
+All comments and approval status are submitted together in a single review (GitHub) or as individual discussions (GitLab, Bitbucket).
 
 ## Requirements
 
@@ -545,6 +551,7 @@ OpenAI GPT-4 support is planned for future releases.
 - Create token at: https://gitlab.com/-/user_settings/personal_access_tokens
 - Required scopes: api (or read_api + write_repository)
 - Supports self-hosted GitLab instances
+- **Note:** "Request changes" feature not available (GitLab public API limitation). You can still approve MRs and post review comments.
 
 ### How much does it cost?
 

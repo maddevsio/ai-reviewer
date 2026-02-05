@@ -279,6 +279,33 @@ export const initCommand = new Command('init')
       setConfig('bitbucket-app-password', bbApiToken as never, configScope);
       console.log(chalk.hex(SUCCESS_COLOR)('✓ Bitbucket API Token saved\n'));
 
+      // Prompt for reviewer UUID for @mentions
+      console.log(chalk.hex(INFO_COLOR)('ℹ️  Reviewer UUID is used for @mentions in review comments'));
+      console.log(chalk.hex(INFO_COLOR)('   This allows team members to be notified of comment discussions'));
+      console.log(chalk.hex(INFO_COLOR)('   Find your UUID: Visit https://bitbucket.org/!api/2.0/user'));
+      console.log(chalk.hex(INFO_COLOR)('   Look for the "account_id" field in the JSON response\n'));
+
+      const { reviewerUuid } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'reviewerUuid',
+          message: 'Enter your Bitbucket account UUID (e.g., 1a2b3c4d5e6f7890abcdef12):',
+          validate: (input: string) => {
+            if (!input || input.trim().length === 0) {
+              return 'UUID is required for review attribution';
+            }
+            // Basic validation: should be alphanumeric, typically 24 characters
+            if (!/^[a-f0-9]{24}$/i.test(input.trim())) {
+              return 'UUID should be a 24-character hexadecimal string';
+            }
+            return true;
+          },
+        },
+      ]);
+
+      setConfig('bitbucket-reviewer-uuid', reviewerUuid.trim() as never, configScope);
+      console.log(chalk.hex(SUCCESS_COLOR)('✓ Reviewer UUID saved\n'));
+
       // Info about API tokens
       console.log(chalk.hex(INFO_COLOR)('ℹ️  API Token permissions required:'));
       console.log(chalk.hex(INFO_COLOR)('   - Repositories: Read, Write'));

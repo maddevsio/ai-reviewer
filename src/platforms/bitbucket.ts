@@ -18,6 +18,7 @@ interface BitbucketConfig {
   repoSlug: string;
   username: string;
   appPassword: string;
+  reviewerUuid: string;
 }
 
 export class BitbucketPlatform extends BaseGitPlatform {
@@ -31,11 +32,12 @@ export class BitbucketPlatform extends BaseGitPlatform {
     const workspace = getConfig('bitbucket-workspace');
     const repoSlug = getConfig('bitbucket-repo-slug');
     const apiToken = getConfig('bitbucket-app-password'); // Still using old field name for now
+    const reviewerUuid = getConfig('bitbucket-reviewer-uuid');
 
-    if (!workspace || !repoSlug || !apiToken) {
+    if (!workspace || !repoSlug || !apiToken || !reviewerUuid) {
       throw new Error(
         'Bitbucket configuration incomplete. Please run: ai-review init\n' +
-        'Required: bitbucket-workspace, bitbucket-repo-slug, bitbucket-app-password\n' +
+        'Required: bitbucket-workspace, bitbucket-repo-slug, bitbucket-app-password, bitbucket-reviewer-uuid\n' +
         'Note: Only API Tokens (ATATT...) are supported. App Passwords are deprecated.'
       );
     }
@@ -45,6 +47,7 @@ export class BitbucketPlatform extends BaseGitPlatform {
       repoSlug,
       username: '', // Not needed for Bearer auth
       appPassword: apiToken,
+      reviewerUuid,
     };
 
     // Use Bearer token authentication (API Tokens only)
@@ -152,9 +155,12 @@ export class BitbucketPlatform extends BaseGitPlatform {
           : ' (no startLine)';
       logger.logPlatform('postComment', `Posting ${commentType} comment to PR #${prId} at ${location}${rangeInfo}`);
 
+      // Append reviewer mention to comment for attribution and notifications
+      const commentWithMention = `${comment.body}\n\n---\n_👤 Reviewed by @{${this.config.reviewerUuid}}_`;
+
       const payload: any = {
         content: {
-          raw: comment.body,
+          raw: commentWithMention,
         },
       };
 

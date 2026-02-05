@@ -101,7 +101,7 @@ This interactive wizard will guide you through:
 3. Choosing your git platform (GitHub / Bitbucket / GitLab)
    - **Note:** Bitbucket requires local config (workspace/repo needed) - use `ai-review init` in your repository
 4. Platform-specific setup:
-   - **Bitbucket**: workspace, repo slug, API token
+   - **Bitbucket**: workspace, repo slug, API token, reviewer UUID (for @mentions)
      - Auto-detects workspace/repo from git remote (if available) - you can accept or enter custom values
    - **GitLab**: namespace, project name, Personal Access Token, instance URL (optional)
      - Auto-detects namespace/project from git remote (if available) - you can accept or enter custom values
@@ -155,16 +155,18 @@ gh auth login
 
 **Important:** Bitbucket requires local configuration (workspace/repo specific). Run `ai-review init` inside your git repository.
 
-Create an API Token with required permissions:
-- **Repositories**: Read, Write
-- **Pull requests**: Read, Write
-
 **API Token Setup:**
-- Create at: https://bitbucket.org/account/settings/api-tokens/
+- Create at: ```https://bitbucket.org/${workspace_name}/${repo_name}/admin/access-tokens```
 - Select scopes: Repositories (Read, Write), Pull requests (Read, Write)
-- Uses Bearer authentication
 
-**Note:** App Passwords are deprecated and not supported. Creation disabled September 9, 2025; stops working June 9, 2026.
+**Reviewer UUID (Required):**
+The setup wizard will ask for your Bitbucket account UUID. This is used for @mentions in review comments, ensuring you receive notifications when team members reply to your comments.
+
+**How to find your UUID:**
+1. Visit: https://bitbucket.org/!api/2.0/user (while logged in)
+2. Look for the `"account_id"` field in the JSON response
+3. Copy the value (e.g., `1a2b3c4d5e6f7890abcdef12`)
+4. Paste it into the setup wizard
 
 **For GitLab:**
 
@@ -530,6 +532,8 @@ ai-review config set bitbucket-app-password
 ```bash
 ai-review config set bitbucket-workspace
 ai-review config set bitbucket-repo-slug
+ai-review config set bitbucket-reviewer-uuid
+# Find your UUID at: https://bitbucket.org/!api/2.0/user (look for "account_id")
 ```
 
 ## FAQ

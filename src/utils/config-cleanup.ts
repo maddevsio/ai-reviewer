@@ -62,6 +62,10 @@ export function configCleanup(
         deleteConfig('bitbucket-app-password', configScope);
         cleaned.platform.push('bitbucket-app-password');
       }
+      if (getConfig('bitbucket-reviewer-uuid')) {
+        deleteConfig('bitbucket-reviewer-uuid', configScope);
+        cleaned.platform.push('bitbucket-reviewer-uuid');
+      }
     }
 
     if (currentPlatform !== 'gitlab') {

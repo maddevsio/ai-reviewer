@@ -16,6 +16,7 @@ const VALID_KEYS: Array<keyof ConfigSchema> = [
   'bitbucket-workspace',
   'bitbucket-repo-slug',
   'bitbucket-app-password',
+  'bitbucket-reviewer-uuid',
   'gitlab-token',
   'gitlab-project-id',
   'gitlab-url',
@@ -30,7 +31,7 @@ export const configCommand = new Command('config')
 
 configCommand
   .command('set <key> [value]')
-  .description('Set a configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-app-password, gitlab-token, gitlab-project-id, gitlab-url. Omit value for interactive input.')
+  .description('Set a configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-app-password, bitbucket-reviewer-uuid, gitlab-token, gitlab-project-id, gitlab-url. Omit value for interactive input.')
   .action(async (key: string, value?: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));
@@ -255,7 +256,7 @@ configCommand
 
 configCommand
   .command('get <key>')
-  .description('Get a specific configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-app-password, gitlab-token, gitlab-project-id, gitlab-url.')
+  .description('Get a specific configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-app-password, bitbucket-reviewer-uuid, gitlab-token, gitlab-project-id, gitlab-url.')
   .action((key: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));
@@ -306,7 +307,7 @@ function maskApiKey(key: string): string {
 
 configCommand
   .command('delete <key>')
-  .description('Remove a configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-app-password, gitlab-token, gitlab-project-id, gitlab-url.')
+  .description('Remove a configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-app-password, bitbucket-reviewer-uuid, gitlab-token, gitlab-project-id, gitlab-url.')
   .action((key: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));

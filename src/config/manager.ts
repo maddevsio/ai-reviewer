@@ -21,6 +21,7 @@ export interface ConfigSchema {
   'bitbucket-repo-slug'?: string;
   'bitbucket-username'?: string;
   'bitbucket-app-password'?: string;
+  'bitbucket-reviewer-uuid'?: string;
   // GitLab-specific fields
   'gitlab-token'?: string;
   'gitlab-project-id'?: string;

@@ -4,10 +4,11 @@ import inquirer from 'inquirer';
 import { platform } from 'os';
 import { setConfig, listConfig, getConfigInfo, AIProvider } from '../config/manager';
 import { SUCCESS_COLOR, INFO_COLOR, SECONDARY_COLOR, HIGHLIGHT_COLOR, WARNING_COLOR } from '../utils/colors';
-import { findGitRepoRoot } from '../utils/git';
+import { findGitRepoRoot, getGitRemoteUrl, parseBitbucketUrl, parseGitLabUrl } from '../utils/git';
 import { STRICTNESS_LEVELS } from '../utils/strictness';
 import { PROVIDER_DISPLAY_NAMES, API_KEY_VALIDATION } from '../utils/constants';
 import { configCleanup } from '../utils/config-cleanup';
+import { askYesNo } from '../utils/prompts';
 
 function getGitHubCLIInstallCommand(): string {
   const os = platform();
@@ -22,6 +23,48 @@ function getGitHubCLIInstallCommand(): string {
     default:
       return 'See: https://cli.github.com';
   }
+}
+
+interface RepoIdentifierPrompts {
+  field1Name: string;
+  field1Message: string;
+  field2Name: string;
+  field2Message: string;
+}
+
+async function promptForRepoIdentifiers(prompts: RepoIdentifierPrompts): Promise<{ field1: string; field2: string }> {
+  const field1Input = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'value',
+      message: `${prompts.field1Message} (e.g., "mycompany"):`,
+      validate: (input: string) => {
+        if (!input || input.trim().length === 0) {
+          return `${prompts.field1Name} is required`;
+        }
+        return true;
+      },
+    },
+  ]);
+
+  const field2Input = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'value',
+      message: `${prompts.field2Message} (e.g., "my-repo"):`,
+      validate: (input: string) => {
+        if (!input || input.trim().length === 0) {
+          return `${prompts.field2Name} is required`;
+        }
+        return true;
+      },
+    },
+  ]);
+
+  return {
+    field1: field1Input.value,
+    field2: field2Input.value,
+  };
 }
 
 interface InitOptions {
@@ -53,14 +96,7 @@ export const initCommand = new Command('init')
       console.log(chalk.hex(WARNING_COLOR)(`Local config will only apply when running commands from ${process.cwd()}/`));
       console.log(chalk.hex(WARNING_COLOR)('If you have git repos inside this directory, they will NOT use this config.\n'));
 
-      const { proceed } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'proceed',
-          message: 'Create local config anyway?',
-          default: false,
-        },
-      ]);
+      const proceed = await askYesNo('Create local config anyway?');
 
       if (!proceed) {
         console.log(chalk.hex(INFO_COLOR)('\nCreating global configuration instead...\n'));
@@ -183,36 +219,44 @@ export const initCommand = new Command('init')
     if (gitPlatform === 'bitbucket') {
       console.log(chalk.hex(INFO_COLOR)('Bitbucket requires additional configuration:\n'));
 
-      const { workspace } = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'workspace',
-          message: 'Enter your Bitbucket workspace (e.g., "mycompany"):',
-          validate: (input: string) => {
-            if (!input || input.trim().length === 0) {
-              return 'Workspace is required';
-            }
-            return true;
-          },
-        },
-      ]);
+      // Try to auto-extract workspace and repo from git remote
+      const remoteUrl = getGitRemoteUrl();
+      const parsedBitbucket = remoteUrl ? parseBitbucketUrl(remoteUrl) : null;
+
+      let workspace: string;
+      let repoSlug: string;
+
+      if (parsedBitbucket) {
+        console.log(chalk.hex(SUCCESS_COLOR)(`✓ Detected from git remote: ${parsedBitbucket.workspace}/${parsedBitbucket.repoSlug}\n`));
+
+        const useDetected = await askYesNo('Use detected workspace and repository?');
+
+        if (useDetected) {
+          workspace = parsedBitbucket.workspace;
+          repoSlug = parsedBitbucket.repoSlug;
+        } else {
+          const result = await promptForRepoIdentifiers({
+            field1Name: 'Workspace',
+            field1Message: 'Enter your Bitbucket workspace',
+            field2Name: 'Repository slug',
+            field2Message: 'Enter your repository slug',
+          });
+          workspace = result.field1;
+          repoSlug = result.field2;
+        }
+      } else {
+        const result = await promptForRepoIdentifiers({
+          field1Name: 'Workspace',
+          field1Message: 'Enter your Bitbucket workspace',
+          field2Name: 'Repository slug',
+          field2Message: 'Enter your repository slug',
+        });
+        workspace = result.field1;
+        repoSlug = result.field2;
+      }
 
       setConfig('bitbucket-workspace', workspace as never, configScope);
-      console.log(chalk.hex(SUCCESS_COLOR)(`✓ Workspace set to: ${workspace}\n`));
-
-      const { repoSlug } = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'repoSlug',
-          message: 'Enter your repository slug (e.g., "my-repo"):',
-          validate: (input: string) => {
-            if (!input || input.trim().length === 0) {
-              return 'Repository slug is required';
-            }
-            return true;
-          },
-        },
-      ]);
+      console.log(chalk.hex(SUCCESS_COLOR)(`✓ Workspace set to: ${workspace}`));
 
       setConfig('bitbucket-repo-slug', repoSlug as never, configScope);
       console.log(chalk.hex(SUCCESS_COLOR)(`✓ Repository slug set to: ${repoSlug}\n`));
@@ -246,33 +290,41 @@ export const initCommand = new Command('init')
     if (gitPlatform === 'gitlab') {
       console.log(chalk.hex(INFO_COLOR)('GitLab requires additional configuration:\n'));
 
-      const { gitlabNamespace } = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'gitlabNamespace',
-          message: 'Enter your GitLab namespace (username or group, e.g., "myusername"):',
-          validate: (input: string) => {
-            if (!input || input.trim().length === 0) {
-              return 'Namespace is required';
-            }
-            return true;
-          },
-        },
-      ]);
+      // Try to auto-extract namespace and project from git remote
+      const remoteUrl = getGitRemoteUrl();
+      const parsedGitLab = remoteUrl ? parseGitLabUrl(remoteUrl) : null;
 
-      const { gitlabProject } = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'gitlabProject',
-          message: 'Enter your GitLab project name (e.g., "my-repo"):',
-          validate: (input: string) => {
-            if (!input || input.trim().length === 0) {
-              return 'Project name is required';
-            }
-            return true;
-          },
-        },
-      ]);
+      let gitlabNamespace: string;
+      let gitlabProject: string;
+
+      if (parsedGitLab) {
+        console.log(chalk.hex(SUCCESS_COLOR)(`✓ Detected from git remote: ${parsedGitLab.namespace}/${parsedGitLab.project}\n`));
+
+        const useDetected = await askYesNo('Use detected namespace and project?');
+
+        if (useDetected) {
+          gitlabNamespace = parsedGitLab.namespace;
+          gitlabProject = parsedGitLab.project;
+        } else {
+          const result = await promptForRepoIdentifiers({
+            field1Name: 'Namespace',
+            field1Message: 'Enter your GitLab namespace (username or group)',
+            field2Name: 'Project name',
+            field2Message: 'Enter your GitLab project name',
+          });
+          gitlabNamespace = result.field1;
+          gitlabProject = result.field2;
+        }
+      } else {
+        const result = await promptForRepoIdentifiers({
+          field1Name: 'Namespace',
+          field1Message: 'Enter your GitLab namespace (username or group)',
+          field2Name: 'Project name',
+          field2Message: 'Enter your GitLab project name',
+        });
+        gitlabNamespace = result.field1;
+        gitlabProject = result.field2;
+      }
 
       // Concatenate namespace and project name to form project ID
       const gitlabProjectId = `${gitlabNamespace}/${gitlabProject}`;

@@ -102,7 +102,9 @@ This interactive wizard will guide you through:
    - **Note:** Bitbucket requires local config (workspace/repo needed) - use `ai-review init` in your repository
 4. Platform-specific setup:
    - **Bitbucket**: workspace, repo slug, API token
+     - Auto-detects workspace/repo from git remote (if available) - you can accept or enter custom values
    - **GitLab**: namespace, project name, Personal Access Token, instance URL (optional)
+     - Auto-detects namespace/project from git remote (if available) - you can accept or enter custom values
 5. Optional: Review strictness level (easy, normal, balanced, strict, pedantic)
 
 ### 2. Get Your API Key

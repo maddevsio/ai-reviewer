@@ -1,3 +1,5 @@
+import { logger } from '../utils/logger';
+
 /**
  * Base interface for git platforms (GitHub, GitLab, Bitbucket)
  * All platform adapters must implement this interface
@@ -106,11 +108,57 @@ export abstract class BaseGitPlatform implements GitPlatform {
   abstract getPullRequestDetails(id: string): Promise<PullRequestDetails>;
   abstract postComment(prId: string, comment: CommentInput, commitSha?: string): Promise<void>;
   abstract submitReview(prId: string, action: ReviewAction, body?: string): Promise<void>;
-  abstract submitReviewWithComments(prId: string, review: ReviewSubmission, commitSha: string): Promise<void>;
   abstract isAuthenticated(): Promise<boolean>;
   abstract getName(): string;
 
+  /**
+   * Default implementation: post comments individually, then submit review action.
+   * GitHub overrides this to batch everything in a single API call.
+   */
+  async submitReviewWithComments(prId: string, review: ReviewSubmission, commitSha: string): Promise<void> {
+    try {
+      for (const comment of review.comments) {
+        await this.postComment(prId, comment, commitSha);
+      }
+      await this.submitReview(prId, review.action, review.body);
+    } catch (error: any) {
+      this.handleApiError(error, 'submit review with comments');
+    }
+  }
+
   protected parseDate(dateString: string): Date {
     return new Date(dateString);
+  }
+
+  /**
+   * Shared error handler for API operations. Logs details via logger, then throws.
+   */
+  protected handleApiError(error: any, operation: string): never {
+    const platform = this.getName();
+    if (error.response) {
+      logger.logApiResponse(platform, error.response.status, JSON.stringify(error.response.data).length, error.response.data);
+      logger.log('api', `${platform} API Error: ${error.response.status} - ${JSON.stringify(error.response.data)}`);
+    } else if (error.request) {
+      logger.log('api', `${platform}: No response received`);
+    } else {
+      logger.log('api', `${platform} request error: ${error.message}`);
+    }
+    throw new Error(`Failed to ${operation}: ${error.message}`);
+  }
+
+  /**
+   * Shared error handler for authentication checks. Logs details via logger, returns false.
+   */
+  protected handleAuthError(error: any): false {
+    const platform = this.getName();
+    if (error.response) {
+      logger.logApiResponse(platform, error.response.status, JSON.stringify(error.response.data).length, error.response.data);
+      logger.log('api', `${platform} auth error: ${error.response.status} ${error.response.statusText}`);
+    } else if (error.request) {
+      logger.log('api', `${platform}: No response received during auth check`);
+    } else {
+      logger.log('api', `${platform} auth error: ${error.message}`);
+    }
+    return false;
   }
 }

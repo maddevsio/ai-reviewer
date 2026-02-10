@@ -12,6 +12,8 @@ import {
   WARNING_COLOR,
   SECONDARY_COLOR,
 } from './colors';
+import type { ReviewStrictness } from '../config/manager';
+import { SEPARATOR_CHAR, SEPARATOR_WIDTH } from '../config/constants';
 
 export interface ReviewComment {
   file: string;
@@ -25,6 +27,7 @@ export interface ReviewComment {
 export interface ReviewOptions {
   post?: boolean;
   dryRun?: boolean;
+  strictness?: ReviewStrictness;
 }
 
 interface CommentReviewResult {
@@ -102,10 +105,10 @@ export async function reviewCommentsInteractively(
       }
     } else if (comment.originalCode && comment.suggestedCode) {
       // Fallback to extracted code if available
-      console.log(chalk.hex(WARNING_COLOR)('━'.repeat(70)));
+      console.log(chalk.hex(WARNING_COLOR)(SEPARATOR_CHAR.repeat(SEPARATOR_WIDTH)));
       console.log(chalk.bgHex(REMOVED_LINE_BG).black(`- ${comment.originalCode}`));
       console.log(chalk.bgHex(ADDED_LINE_BG).black(`+ ${comment.suggestedCode}`));
-      console.log(chalk.hex(WARNING_COLOR)('━'.repeat(70)));
+      console.log(chalk.hex(WARNING_COLOR)(SEPARATOR_CHAR.repeat(SEPARATOR_WIDTH)));
     }
 
     // Show warning if line is not in the diff
@@ -252,10 +255,10 @@ export async function askPostCommentsDecision(
   }
 }
 
-export type ReviewAction = 'approve' | 'request_changes' | 'comment' | 'skip';
+type ApprovalDecision = 'approve' | 'request_changes' | 'comment' | 'skip';
 
 interface PRApprovalDecision {
-  action: ReviewAction;
+  action: ApprovalDecision;
   reviewBody?: string;
 }
 

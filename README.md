@@ -524,7 +524,7 @@ ai-review config list
 
 3. Update your API token:
 ```bash
-ai-review config set bitbucket-app-password
+ai-review config set bitbucket-api-token
 # Enter your API Token
 ```
 

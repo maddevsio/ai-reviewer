@@ -3,9 +3,11 @@ import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { getConfig, setConfig, deleteConfig, listConfig, ConfigSchema, getConfigInfo, getConfigScope, AIProvider } from '../config/manager';
 import { SUCCESS_COLOR, ERROR_COLOR, WARNING_COLOR, SECONDARY_COLOR, HIGHLIGHT_COLOR } from '../utils/colors';
-import { STRICTNESS_LEVELS } from '../utils/strictness';
-import { PROVIDER_DISPLAY_NAMES, API_KEY_VALIDATION } from '../utils/constants';
-import { configCleanup } from '../utils/config-cleanup';
+import { askStrictnessLevel } from '../utils/strictness';
+import { askGoogleModel } from '../utils/models';
+import { PROVIDER_DISPLAY_NAMES, API_KEY_VALIDATION } from '../config/constants';
+import { configCleanup, isSensitiveKey, maskApiKey } from '../utils/config';
+import { askProviderSelection } from '../utils/prompts';
 
 const VALID_KEYS: Array<keyof ConfigSchema> = [
   'provider',
@@ -15,7 +17,7 @@ const VALID_KEYS: Array<keyof ConfigSchema> = [
   'google-model',
   'bitbucket-workspace',
   'bitbucket-repo-slug',
-  'bitbucket-app-password',
+  'bitbucket-api-token',
   'bitbucket-reviewer-uuid',
   'gitlab-token',
   'gitlab-project-id',
@@ -31,7 +33,7 @@ export const configCommand = new Command('config')
 
 configCommand
   .command('set <key> [value]')
-  .description('Set a configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-app-password, bitbucket-reviewer-uuid, gitlab-token, gitlab-project-id, gitlab-url. Omit value for interactive input.')
+  .description('Set a configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-api-token, bitbucket-reviewer-uuid, gitlab-token, gitlab-project-id, gitlab-url. Omit value for interactive input.')
   .action(async (key: string, value?: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));
@@ -41,29 +43,7 @@ configCommand
 
     // Interactive provider selection
     if (key === 'provider' && !value) {
-      const { selectedProvider } = await inquirer.prompt([
-        {
-          type: 'list',
-          name: 'selectedProvider',
-          message: 'Select AI provider:',
-          choices: [
-            {
-              name: `${chalk.hex(SUCCESS_COLOR)('✓')} Anthropic (Claude) - Available`,
-              value: 'anthropic',
-            },
-            {
-              name: `${chalk.hex(SUCCESS_COLOR)('✓')} Google (Gemini) - Available (Free tier)`,
-              value: 'google',
-            },
-            {
-              name: chalk.hex(SECONDARY_COLOR)('🚧 OpenAI (GPT) - Coming soon'),
-              value: 'openai',
-              disabled: true,
-            },
-          ],
-        },
-      ]);
-      value = selectedProvider;
+      value = await askProviderSelection();
 
       // Automatically prompt for API key after provider selection
       const providerName = PROVIDER_DISPLAY_NAMES[value as AIProvider];
@@ -126,59 +106,13 @@ configCommand
 
     // Interactive Google model selection
     if (key === 'google-model' && !value) {
-      const { selectedModel } = await inquirer.prompt([
-        {
-          type: 'list',
-          name: 'selectedModel',
-          message: 'Select Google Gemini model:',
-          choices: [
-            {
-              name: 'Gemini 3 Flash (Most balanced model)',
-              value: 'gemini-3-flash-preview',
-            },
-            {
-              name: 'Gemini 2.5 Flash (Best model in terms of price-performance)',
-              value: 'gemini-2.5-flash',
-            },
-          ],
-        },
-      ]);
-      value = selectedModel;
+      value = await askGoogleModel();
     }
 
     // Interactive review strictness selection
     if (key === 'review-strictness' && !value) {
-      const { selectedStrictness } = await inquirer.prompt([
-        {
-          type: 'list',
-          name: 'selectedStrictness',
-          message: 'Select review strictness:',
-          choices: [
-            {
-              name: `${STRICTNESS_LEVELS.easy.doom} (easy) - ${STRICTNESS_LEVELS.easy.description}`,
-              value: 'easy',
-            },
-            {
-              name: `${STRICTNESS_LEVELS.normal.doom} (normal) - ${STRICTNESS_LEVELS.normal.description}`,
-              value: 'normal',
-            },
-            {
-              name: `${STRICTNESS_LEVELS.balanced.doom} (balanced) - ${STRICTNESS_LEVELS.balanced.description}`,
-              value: 'balanced',
-            },
-            {
-              name: `${STRICTNESS_LEVELS.strict.doom} (strict) - ${STRICTNESS_LEVELS.strict.description}`,
-              value: 'strict',
-            },
-            {
-              name: `${STRICTNESS_LEVELS.pedantic.doom} (pedantic) - ${STRICTNESS_LEVELS.pedantic.description}`,
-              value: 'pedantic',
-            },
-          ],
-          default: 'balanced',
-        },
-      ]);
-      value = selectedStrictness;
+      const selected = await askStrictnessLevel();
+      value = selected ?? undefined;
     }
 
     // For api-key, require value
@@ -194,8 +128,8 @@ configCommand
       value = apiKey;
     }
 
-    // For bitbucket-app-password, require value
-    if (key === 'bitbucket-app-password' && !value) {
+    // For bitbucket-api-token, require value
+    if (key === 'bitbucket-api-token' && !value) {
       const { bbApiToken } = await inquirer.prompt([
         {
           type: 'password',
@@ -248,7 +182,7 @@ configCommand
 
     // Mask sensitive values for display (same format as config list)
     let displayValue = value;
-    if (key === 'api-key' || key === 'bitbucket-app-password' || key === 'gitlab-token') {
+    if (isSensitiveKey(key)) {
       displayValue = maskApiKey(value);
     }
     console.log(chalk.hex(SUCCESS_COLOR)(`✓ Set ${key} = ${displayValue}`));
@@ -256,7 +190,7 @@ configCommand
 
 configCommand
   .command('get <key>')
-  .description('Get a specific configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-app-password, bitbucket-reviewer-uuid, gitlab-token, gitlab-project-id, gitlab-url.')
+  .description('Get a specific configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-api-token, bitbucket-reviewer-uuid, gitlab-token, gitlab-project-id, gitlab-url.')
   .action((key: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));
@@ -290,24 +224,15 @@ configCommand
     } else {
       console.log(chalk.bold('Current Configuration:'));
       for (const [key, value] of Object.entries(config)) {
-        const displayValue = (key === 'api-key' || key === 'bitbucket-app-password' || key === 'gitlab-token') && value ? maskApiKey(value) : value;
+        const displayValue = isSensitiveKey(key) && value ? maskApiKey(value) : value;
         console.log(`  ${chalk.hex(HIGHLIGHT_COLOR)(key)}: ${displayValue}`);
       }
     }
   });
 
-function maskApiKey(key: string): string {
-  if (key.length <= 10) {
-    return '***';
-  }
-  const start = key.slice(0, 8);
-  const end = key.slice(-4);
-  return `${start}...${end}`;
-}
-
 configCommand
   .command('delete <key>')
-  .description('Remove a configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-app-password, bitbucket-reviewer-uuid, gitlab-token, gitlab-project-id, gitlab-url.')
+  .description('Remove a configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-api-token, bitbucket-reviewer-uuid, gitlab-token, gitlab-project-id, gitlab-url.')
   .action((key: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));

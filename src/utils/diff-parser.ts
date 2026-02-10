@@ -1,3 +1,5 @@
+import { FileChange } from '../platforms/base';
+
 export interface DiffHunk {
   oldStart: number;
   oldLines: number;
@@ -141,4 +143,61 @@ export function getCodeContext(
   }
 
   return [];
+}
+
+/**
+ * Parse a unified diff string into FileChange[] with per-file stats.
+ * Shared by GitHub and Bitbucket platforms.
+ */
+export function parseFileChanges(diff: string): FileChange[] {
+  const files: FileChange[] = [];
+  const lines = diff.split('\n');
+  let currentFile: FileChange | null = null;
+  let patchLines: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (line.startsWith('diff --git')) {
+      if (currentFile) {
+        currentFile.patch = patchLines.join('\n');
+        files.push(currentFile);
+      }
+
+      const fileMatch = line.match(/^diff --git a\/(.*?) b\/(.*?)$/);
+      if (fileMatch) {
+        currentFile = {
+          path: fileMatch[2],
+          additions: 0,
+          deletions: 0,
+          patch: '',
+          status: 'modified',
+        };
+        patchLines = [line];
+      }
+    } else if (currentFile) {
+      patchLines.push(line);
+
+      if (line.startsWith('+') && !line.startsWith('+++')) {
+        currentFile.additions++;
+      } else if (line.startsWith('-') && !line.startsWith('---')) {
+        currentFile.deletions++;
+      }
+
+      if (line.startsWith('new file mode')) {
+        currentFile.status = 'added';
+      } else if (line.startsWith('deleted file mode')) {
+        currentFile.status = 'deleted';
+      } else if (line.startsWith('rename from')) {
+        currentFile.status = 'renamed';
+      }
+    }
+  }
+
+  if (currentFile) {
+    currentFile.patch = patchLines.join('\n');
+    files.push(currentFile);
+  }
+
+  return files;
 }

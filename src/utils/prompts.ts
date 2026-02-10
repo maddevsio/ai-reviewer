@@ -1,6 +1,7 @@
 import * as readline from 'readline';
 import chalk from 'chalk';
-import {DISABLED_COLOR, WARNING_COLOR} from './colors';
+import inquirer from 'inquirer';
+import { DISABLED_COLOR, WARNING_COLOR, SUCCESS_COLOR, SECONDARY_COLOR } from './colors';
 
 /**
  * Ask a yes/no question that requires explicit y or n keypress
@@ -81,4 +82,33 @@ export async function askConfirmation(message: string): Promise<boolean> {
       resolve(answer.toLowerCase() === 'yes');
     });
   });
+}
+
+/**
+ * Interactive AI provider selection prompt
+ */
+export async function askProviderSelection(): Promise<string> {
+  const { selectedProvider } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'selectedProvider',
+      message: 'Select AI provider:',
+      choices: [
+        {
+          name: `${chalk.hex(SUCCESS_COLOR)('✓')} Anthropic (Claude) - Available`,
+          value: 'anthropic',
+        },
+        {
+          name: `${chalk.hex(SUCCESS_COLOR)('✓')} Google (Gemini) - Available (Free tier)`,
+          value: 'google',
+        },
+        {
+          name: chalk.hex(SECONDARY_COLOR)('🚧 OpenAI (GPT) - Coming soon'),
+          value: 'openai',
+          disabled: true,
+        },
+      ],
+    },
+  ]);
+  return selectedProvider;
 }

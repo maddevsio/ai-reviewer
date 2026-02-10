@@ -1,12 +1,13 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { BaseAIProvider } from './base';
 import { logger } from '../utils/logger';
+import { GEMINI_25_FLASH_MODEL } from '../config/constants';
 
 export class GoogleProvider extends BaseAIProvider {
   private client: GoogleGenerativeAI;
   private model: string;
 
-  constructor(apiKey: string, model: string = 'gemini-2.5-flash') {
+  constructor(apiKey: string, model: string = GEMINI_25_FLASH_MODEL) {
     super();
     this.client = new GoogleGenerativeAI(apiKey);
     this.model = model;

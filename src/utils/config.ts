@@ -1,5 +1,8 @@
 import { getConfig, deleteConfig } from '../config/manager';
+import { SENSITIVE_KEYS } from '../config/constants';
 import { logger } from './logger';
+
+// --- Config cleanup ---
 
 export type CleanupTarget = 'provider' | 'platform';
 
@@ -58,9 +61,9 @@ export function configCleanup(
         deleteConfig('bitbucket-repo-slug', configScope);
         cleaned.platform.push('bitbucket-repo-slug');
       }
-      if (getConfig('bitbucket-app-password')) {
-        deleteConfig('bitbucket-app-password', configScope);
-        cleaned.platform.push('bitbucket-app-password');
+      if (getConfig('bitbucket-api-token')) {
+        deleteConfig('bitbucket-api-token', configScope);
+        cleaned.platform.push('bitbucket-api-token');
       }
       if (getConfig('bitbucket-reviewer-uuid')) {
         deleteConfig('bitbucket-reviewer-uuid', configScope);
@@ -92,4 +95,17 @@ export function configCleanup(
   if (allCleaned.length > 0) {
     logger.log('config', `Cleaned up redundant config keys: ${allCleaned.join(', ')}`);
   }
+}
+
+// --- Sensitive key helpers ---
+
+export function isSensitiveKey(key: string): boolean {
+  return SENSITIVE_KEYS.includes(key as any);
+}
+
+export function maskApiKey(key: string): string {
+  if (key.length <= 10) {
+    return '***';
+  }
+  return `${key.slice(0, 8)}...${key.slice(-4)}`;
 }

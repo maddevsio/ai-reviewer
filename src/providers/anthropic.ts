@@ -1,12 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { BaseAIProvider } from './base';
 import { logger } from '../utils/logger';
+import { SONNET_45_MODEL, MAX_REVIEW_TOKENS, VALIDATION_MAX_TOKENS } from '../config/constants';
 
 export class AnthropicProvider extends BaseAIProvider {
   private client: Anthropic;
   private model: string;
 
-  constructor(apiKey: string, model: string = 'claude-sonnet-4-5-20250929') {
+  constructor(apiKey: string, model: string = SONNET_45_MODEL) {
     super();
     this.client = new Anthropic({ apiKey });
     this.model = model;
@@ -18,7 +19,7 @@ export class AnthropicProvider extends BaseAIProvider {
 
       const response = await this.client.messages.create({
         model: this.model,
-        max_tokens: 4096,
+        max_tokens: MAX_REVIEW_TOKENS,
         messages: [
           {
             role: 'user',
@@ -47,7 +48,7 @@ export class AnthropicProvider extends BaseAIProvider {
       // Try a minimal API call to check if credentials work
       await this.client.messages.create({
         model: this.model,
-        max_tokens: 10,
+        max_tokens: VALIDATION_MAX_TOKENS,
         messages: [{ role: 'user', content: 'test' }],
       });
       return true;

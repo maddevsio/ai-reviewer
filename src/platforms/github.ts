@@ -6,10 +6,10 @@ import {
   PullRequestDetails,
   CommentInput,
   Author,
-  FileChange,
   ReviewAction,
   ReviewSubmission,
 } from './base';
+import { parseFileChanges } from '../utils/diff-parser';
 
 interface RepoInfo {
   owner: string;
@@ -23,8 +23,8 @@ export class GitHubPlatform extends BaseGitPlatform {
     try {
       await execa('gh', ['auth', 'status']);
       return true;
-    } catch (error) {
-      return false;
+    } catch (error: any) {
+      return this.handleAuthError(error);
     }
   }
 
@@ -88,7 +88,7 @@ export class GitHubPlatform extends BaseGitPlatform {
       if (error.stderr?.includes('no pull requests')) {
         return [];
       }
-      throw new Error(`Failed to list pull requests: ${error.message}`);
+      this.handleApiError(error, 'list pull requests');
     }
   }
 
@@ -108,8 +108,7 @@ export class GitHubPlatform extends BaseGitPlatform {
       // Get PR diff
       const { stdout: diff } = await execa('gh', ['pr', 'diff', id]);
 
-      // Parse files from diff (simplified - in real implementation, parse diff properly)
-      const files: FileChange[] = this.parseDiffFiles(diff);
+      const files = parseFileChanges(diff);
 
       const pr: PullRequest = {
         id: metadata.number.toString(),
@@ -142,7 +141,7 @@ export class GitHubPlatform extends BaseGitPlatform {
         headSha: metadata.headRefOid,
       };
     } catch (error: any) {
-      throw new Error(`Failed to get PR details: ${error.message}`);
+      this.handleApiError(error, 'get PR details');
     }
   }
 
@@ -176,7 +175,7 @@ export class GitHubPlatform extends BaseGitPlatform {
         await execa('gh', ['pr', 'comment', prId, '--body', comment.body]);
       }
     } catch (error: any) {
-      throw new Error(`Failed to post comment: ${error.message}`);
+      this.handleApiError(error, 'post comment');
     }
   }
 
@@ -193,7 +192,7 @@ export class GitHubPlatform extends BaseGitPlatform {
         body: body || '',
       });
     } catch (error: any) {
-      throw new Error(`Failed to submit review: ${error.message}`);
+      this.handleApiError(error, 'submit review');
     }
   }
 
@@ -230,7 +229,7 @@ export class GitHubPlatform extends BaseGitPlatform {
         comments: comments.length > 0 ? comments : undefined,
       });
     } catch (error: any) {
-      throw new Error(`Failed to submit review: ${error.message}`);
+      this.handleApiError(error, 'submit review with comments');
     }
   }
 
@@ -238,27 +237,4 @@ export class GitHubPlatform extends BaseGitPlatform {
     return 'GitHub';
   }
 
-  private parseDiffFiles(diff: string): FileChange[] {
-    const files: FileChange[] = [];
-    const fileRegex = /^diff --git a\/(.*?) b\/(.*?)$/gm;
-    let match;
-
-    while ((match = fileRegex.exec(diff)) !== null) {
-      const path = match[2];
-
-      // Simple stats extraction (in real implementation, properly parse diff)
-      const additions = (diff.match(/^\+[^+]/gm) || []).length;
-      const deletions = (diff.match(/^-[^-]/gm) || []).length;
-
-      files.push({
-        path,
-        additions,
-        deletions,
-        patch: '', // Simplified for now
-        status: 'modified',
-      });
-    }
-
-    return files;
-  }
 }

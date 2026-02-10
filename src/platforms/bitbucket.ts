@@ -1,17 +1,17 @@
 import axios, { AxiosInstance } from 'axios';
 import { getConfig } from '../config/manager';
 import { logger } from '../utils/logger';
+import { BITBUCKET_API_BASE_URL, DEFAULT_PAGINATION_SIZE } from '../config/constants';
 import {
   BaseGitPlatform,
   PullRequest,
   PullRequestDetails,
   CommentInput,
   ReviewAction,
-  ReviewSubmission,
-  FileChange,
   Comment,
   Author,
 } from './base';
+import { parseFileChanges } from '../utils/diff-parser';
 
 interface BitbucketConfig {
   workspace: string;
@@ -31,13 +31,13 @@ export class BitbucketPlatform extends BaseGitPlatform {
     // Load Bitbucket-specific config
     const workspace = getConfig('bitbucket-workspace');
     const repoSlug = getConfig('bitbucket-repo-slug');
-    const apiToken = getConfig('bitbucket-app-password'); // Still using old field name for now
+    const apiToken = getConfig('bitbucket-api-token'); // Still using old field name for now
     const reviewerUuid = getConfig('bitbucket-reviewer-uuid');
 
     if (!workspace || !repoSlug || !apiToken || !reviewerUuid) {
       throw new Error(
         'Bitbucket configuration incomplete. Please run: ai-review init\n' +
-        'Required: bitbucket-workspace, bitbucket-repo-slug, bitbucket-app-password, bitbucket-reviewer-uuid\n' +
+        'Required: bitbucket-workspace, bitbucket-repo-slug, bitbucket-api-token, bitbucket-reviewer-uuid\n' +
         'Note: Only API Tokens (ATATT...) are supported. App Passwords are deprecated.'
       );
     }
@@ -52,7 +52,7 @@ export class BitbucketPlatform extends BaseGitPlatform {
 
     // Use Bearer token authentication (API Tokens only)
     this.api = axios.create({
-      baseURL: 'https://api.bitbucket.org/2.0',
+      baseURL: BITBUCKET_API_BASE_URL,
       headers: {
         'Authorization': `Bearer ${apiToken}`,
         'Content-Type': 'application/json',
@@ -67,23 +67,10 @@ export class BitbucketPlatform extends BaseGitPlatform {
 
   async isAuthenticated(): Promise<boolean> {
     try {
-      // Test authentication by fetching workspace info
       await this.api.get(`/workspaces/${this.config.workspace}`);
       return true;
     } catch (error: any) {
-      // Log detailed error for debugging
-      if (error.response) {
-        console.error(`Bitbucket API Error: ${error.response.status} ${error.response.statusText}`);
-        if (error.response.data?.error?.message) {
-          console.error(`Message: ${error.response.data.error.message}`);
-        }
-        console.error(`Response data:`, JSON.stringify(error.response.data, null, 2));
-      } else if (error.request) {
-        console.error('No response received from Bitbucket API');
-      } else {
-        console.error(`Error: ${error.message}`);
-      }
-      return false;
+      return this.handleAuthError(error);
     }
   }
 
@@ -96,7 +83,7 @@ export class BitbucketPlatform extends BaseGitPlatform {
         {
           params: {
             state: 'OPEN',
-            pagelen: 50, // Get up to 50 PRs
+            pagelen: DEFAULT_PAGINATION_SIZE,
           },
         }
       );
@@ -105,7 +92,7 @@ export class BitbucketPlatform extends BaseGitPlatform {
 
       return response.data.values.map((pr: any) => this.mapPullRequest(pr));
     } catch (error: any) {
-      throw new Error(`Failed to list pull requests: ${error.message}`);
+      this.handleApiError(error, 'list pull requests');
     }
   }
 
@@ -126,8 +113,7 @@ export class BitbucketPlatform extends BaseGitPlatform {
       const diff = diffResponse.data;
       const comments = commentsResponse.data.values.map((c: any) => this.mapComment(c));
 
-      // Bitbucket doesn't provide per-file stats in the PR object, so we'll parse from diff
-      const files = this.parseFilesFromDiff(diff);
+      const files = parseFileChanges(diff);
 
       logger.logPlatform('getPullRequestDetails', `Fetched PR #${id}: ${files.length} files, ${comments.length} existing comments`);
 
@@ -140,7 +126,7 @@ export class BitbucketPlatform extends BaseGitPlatform {
         headSha: prData.source.commit.hash,
       };
     } catch (error: any) {
-      throw new Error(`Failed to get PR details: ${error.message}`);
+      this.handleApiError(error, 'get PR details');
     }
   }
 
@@ -187,7 +173,7 @@ export class BitbucketPlatform extends BaseGitPlatform {
 
       logger.logPlatform('postComment', `Comment posted successfully`);
     } catch (error: any) {
-      throw new Error(`Failed to post comment: ${error.message}`);
+      this.handleApiError(error, 'post comment');
     }
   }
 
@@ -221,32 +207,7 @@ export class BitbucketPlatform extends BaseGitPlatform {
         // (Unlike GitHub which bundles everything in a single review)
       }
     } catch (error: any) {
-      // Enhanced error logging
-      if (error.response) {
-        console.error(`Bitbucket API Error: ${error.response.status} ${error.response.statusText}`);
-        console.error('Response data:', JSON.stringify(error.response.data, null, 2));
-        console.error('Request URL:', error.config?.url);
-        console.error('Request method:', error.config?.method);
-      }
-      throw new Error(`Failed to submit review: ${error.message}`);
-    }
-  }
-
-  async submitReviewWithComments(
-    prId: string,
-    review: ReviewSubmission,
-    commitSha: string
-  ): Promise<void> {
-    try {
-      // Post all inline comments first
-      for (const comment of review.comments) {
-        await this.postComment(prId, comment, commitSha);
-      }
-
-      // Then submit the review action
-      await this.submitReview(prId, review.action, review.body);
-    } catch (error: any) {
-      throw new Error(`Failed to submit review with comments: ${error.message}`);
+      this.handleApiError(error, 'submit review');
     }
   }
 
@@ -289,69 +250,4 @@ export class BitbucketPlatform extends BaseGitPlatform {
     };
   }
 
-  private parseFilesFromDiff(diff: string): FileChange[] {
-    const files: FileChange[] = [];
-    let currentFile: FileChange | null = null;
-
-    const lines = diff.split('\n');
-    let i = 0;
-
-    while (i < lines.length) {
-      const line = lines[i];
-
-      // New file detected
-      if (line.startsWith('diff --git')) {
-        if (currentFile) {
-          files.push(currentFile);
-        }
-
-        const fileMatch = line.match(/^diff --git a\/(.*?) b\/(.*?)$/);
-        if (fileMatch) {
-          const path = fileMatch[2];
-          currentFile = {
-            path,
-            additions: 0,
-            deletions: 0,
-            patch: '',
-            status: 'modified',
-          };
-
-          // Collect patch until next file
-          let patchLines: string[] = [line];
-          i++;
-          while (i < lines.length && !lines[i].startsWith('diff --git')) {
-            patchLines.push(lines[i]);
-
-            // Count additions and deletions
-            if (lines[i].startsWith('+') && !lines[i].startsWith('+++')) {
-              currentFile.additions++;
-            } else if (lines[i].startsWith('-') && !lines[i].startsWith('---')) {
-              currentFile.deletions++;
-            }
-
-            // Detect file status
-            if (lines[i].startsWith('new file mode')) {
-              currentFile.status = 'added';
-            } else if (lines[i].startsWith('deleted file mode')) {
-              currentFile.status = 'deleted';
-            } else if (lines[i].startsWith('rename from')) {
-              currentFile.status = 'renamed';
-            }
-
-            i++;
-          }
-          currentFile.patch = patchLines.join('\n');
-          continue;
-        }
-      }
-      i++;
-    }
-
-    // Add last file
-    if (currentFile) {
-      files.push(currentFile);
-    }
-
-    return files;
-  }
 }

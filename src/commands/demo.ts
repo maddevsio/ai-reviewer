@@ -11,12 +11,8 @@ import {
   askPRApprovalDecision,
   handlePRApprovalWorkflow,
   ReviewComment,
+  ReviewOptions,
 } from '../utils/review-workflow';
-
-interface ReviewOptions {
-  post?: boolean;
-  dryRun?: boolean;
-}
 
 // Mock PR data
 const MOCK_PRS = [

@@ -2,13 +2,13 @@ import axios, { AxiosInstance } from 'axios';
 import crypto from 'crypto';
 import { getConfig } from '../config/manager';
 import { logger } from '../utils/logger';
+import { DEFAULT_GITLAB_URL, DEFAULT_PAGINATION_SIZE } from '../config/constants';
 import {
   BaseGitPlatform,
   PullRequest,
   PullRequestDetails,
   CommentInput,
   ReviewAction,
-  ReviewSubmission,
   FileChange,
   Comment,
   Author,
@@ -30,7 +30,7 @@ export class GitLabPlatform extends BaseGitPlatform {
     // Load GitLab-specific config
     const projectId = getConfig('gitlab-project-id');
     const token = getConfig('gitlab-token');
-    const url = getConfig('gitlab-url') || 'https://gitlab.com';
+    const url = getConfig('gitlab-url') || DEFAULT_GITLAB_URL;
 
     if (!projectId || !token) {
       throw new Error(
@@ -66,23 +66,13 @@ export class GitLabPlatform extends BaseGitPlatform {
 
   async isAuthenticated(): Promise<boolean> {
     try {
-      // Test authentication by fetching current user
       const url = `${this.config.url}/api/v4/user`;
       logger.logPlatformApiRequest('GET', url, { 'PRIVATE-TOKEN': `${this.config.token.slice(0, 8)}...` });
       const response = await this.api.get('/user');
       logger.logApiResponse('GitLab', response.status, JSON.stringify(response.data).length, response.data);
       return true;
     } catch (error: any) {
-      if (error.response) {
-        logger.logApiResponse('GitLab', error.response.status, JSON.stringify(error.response.data).length, error.response.data);
-        console.error(`GitLab API Error: ${error.response.status} ${error.response.statusText}`);
-        if (error.response.data?.message) {
-          console.error(`Message: ${error.response.data.message}`);
-        }
-      } else {
-        logger.log('api', `Authentication error: ${error.message}`);
-      }
-      return false;
+      return this.handleAuthError(error);
     }
   }
 
@@ -92,7 +82,7 @@ export class GitLabPlatform extends BaseGitPlatform {
 
       const url = `/projects/${encodeURIComponent(this.config.projectId)}/merge_requests`;
       const fullUrl = `${this.config.url}/api/v4${url}`;
-      const params = { state: 'opened', per_page: 50 };
+      const params = { state: 'opened', per_page: DEFAULT_PAGINATION_SIZE };
 
       logger.logApiRequest('GitLab', fullUrl, params);
 
@@ -280,24 +270,6 @@ export class GitLabPlatform extends BaseGitPlatform {
     }
   }
 
-  async submitReviewWithComments(
-    prId: string,
-    review: ReviewSubmission,
-    commitSha: string
-  ): Promise<void> {
-    try {
-      // Post all inline comments first
-      for (const comment of review.comments) {
-        await this.postComment(prId, comment, commitSha);
-      }
-
-      // Then submit the review action
-      await this.submitReview(prId, review.action, review.body);
-    } catch (error: any) {
-      throw new Error(`Failed to submit review with comments: ${error.message}`);
-    }
-  }
-
   private mapMergeRequest(mr: any): PullRequest {
     let status: 'open' | 'closed' | 'merged' = 'open';
     if (mr.state === 'merged') {
@@ -394,13 +366,4 @@ export class GitLabPlatform extends BaseGitPlatform {
     return `${hash}_${line}_${line}`;
   }
 
-  private handleApiError(error: any, operation: string): never {
-    if (error.response) {
-      logger.logApiResponse('GitLab', error.response.status, JSON.stringify(error.response.data).length, error.response.data);
-      logger.log('api', `GitLab API Error: ${error.response.status} - ${JSON.stringify(error.response.data)}`);
-    } else {
-      logger.log('api', `Request error: ${error.message}`);
-    }
-    throw new Error(`Failed to ${operation}: ${error.message}`);
-  }
 }

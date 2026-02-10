@@ -20,7 +20,7 @@ export interface ConfigSchema {
   'bitbucket-workspace'?: string;
   'bitbucket-repo-slug'?: string;
   'bitbucket-username'?: string;
-  'bitbucket-app-password'?: string;
+  'bitbucket-api-token'?: string;
   'bitbucket-reviewer-uuid'?: string;
   // GitLab-specific fields
   'gitlab-token'?: string;

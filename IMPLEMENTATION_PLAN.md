@@ -418,7 +418,7 @@ A CLI tool that performs AI-powered code reviews on pull requests from GitHub, G
 
 #### 13.3 Add Bitbucket Configuration ✅
 - ✅ Add config fields for workspace and repository slug
-- ✅ Add config field for Bitbucket API Token (bitbucket-app-password)
+- ✅ Add config field for Bitbucket API Token (bitbucket-api-token)
 - ✅ Update configuration commands to support Bitbucket
 - ✅ Add Bitbucket setup to init wizard with validation
 

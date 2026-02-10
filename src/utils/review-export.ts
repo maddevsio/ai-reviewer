@@ -1,12 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-
-export interface ReviewComment {
-  file: string;
-  line?: number;
-  startLine?: number;
-  comment: string;
-}
+import { ReviewComment } from './review-workflow';
 
 /**
  * Export review comments to REVIEW.md file in project root

@@ -101,6 +101,12 @@ export interface GitPlatform {
    * Get the name of this platform
    */
   getName(): string;
+
+  /**
+   * Format commit reference for this platform's API.
+   * Each platform may need SHAs in a different format for comment positioning.
+   */
+  getCommitRef(details: PullRequestDetails): string;
 }
 
 export abstract class BaseGitPlatform implements GitPlatform {
@@ -110,6 +116,13 @@ export abstract class BaseGitPlatform implements GitPlatform {
   abstract submitReview(prId: string, action: ReviewAction, body?: string): Promise<void>;
   abstract isAuthenticated(): Promise<boolean>;
   abstract getName(): string;
+
+  /**
+   * Default: return headSha. Platforms needing additional SHAs (e.g. GitLab) override this.
+   */
+  getCommitRef(details: PullRequestDetails): string {
+    return details.headSha;
+  }
 
   /**
    * Default implementation: post comments individually, then submit review action.
@@ -122,7 +135,7 @@ export abstract class BaseGitPlatform implements GitPlatform {
       }
       await this.submitReview(prId, review.action, review.body);
     } catch (error: any) {
-      this.handleApiError(error, 'submit review with comments');
+      return this.handleApiError(error, 'submit review with comments');
     }
   }
 

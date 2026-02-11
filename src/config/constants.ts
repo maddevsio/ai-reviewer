@@ -1,4 +1,4 @@
-import { AIProvider, Platform, ReviewStrictness } from './manager';
+import { AIProvider, Platform, ReviewStrictness, ConfigSchema } from './manager';
 
 // --- Models ---
 export const SONNET_45_MODEL = 'claude-sonnet-4-5-20250929';
@@ -25,6 +25,23 @@ export const SENSITIVE_KEYS: Array<keyof import('./manager').ConfigSchema> = [
   'bitbucket-api-token',
   'gitlab-token',
 ];
+
+/**
+ * Config keys owned by each AI provider.
+ * Used by configCleanup to remove stale keys when switching providers.
+ */
+export const PROVIDER_CONFIG_KEYS: Partial<Record<AIProvider, Array<keyof ConfigSchema>>> = {
+  google: ['google-model'],
+};
+
+/**
+ * Config keys owned by each git platform.
+ * Used by configCleanup to remove stale keys when switching platforms.
+ */
+export const PLATFORM_CONFIG_KEYS: Partial<Record<Platform, Array<keyof ConfigSchema>>> = {
+  bitbucket: ['bitbucket-workspace', 'bitbucket-repo-slug', 'bitbucket-api-token', 'bitbucket-reviewer-uuid'],
+  gitlab: ['gitlab-token', 'gitlab-project-id', 'gitlab-url'],
+};
 
 /**
  * Human-readable display names for AI providers

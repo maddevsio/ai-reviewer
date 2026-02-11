@@ -1,5 +1,5 @@
-import { getConfig, deleteConfig } from '../config/manager';
-import { SENSITIVE_KEYS } from '../config/constants';
+import { getConfig, deleteConfig, ConfigSchema } from '../config/manager';
+import { SENSITIVE_KEYS, PROVIDER_CONFIG_KEYS, PLATFORM_CONFIG_KEYS } from '../config/constants';
 import { logger } from './logger';
 
 // --- Config cleanup ---
@@ -7,10 +7,10 @@ import { logger } from './logger';
 export type CleanupTarget = 'provider' | 'platform';
 
 /**
- * Clean up redundant config fields when provider or platform changes
+ * Clean up redundant config fields when provider or platform changes.
  *
- * Silently removes config keys that don't belong to the current provider/platform.
- * Logs cleanup operations when --verbose=config is enabled.
+ * Driven by PROVIDER_CONFIG_KEYS and PLATFORM_CONFIG_KEYS mappings in constants.
+ * Adding a new provider/platform only requires updating those mappings.
  *
  * @param target - What to clean: 'provider', 'platform', or undefined for both
  * @param configScope - Which config to clean: 'global' or 'local'
@@ -19,81 +19,38 @@ export function configCleanup(
   target?: CleanupTarget,
   configScope: 'global' | 'local' = 'global'
 ): void {
-  const cleaned = {
-    provider: [] as string[],
-    platform: [] as string[],
-  };
+  const cleaned: string[] = [];
 
-  // Clean provider-specific fields
   if (!target || target === 'provider') {
     const currentProvider = getConfig('provider');
-
-    // Clean up fields that don't belong to current provider
-    if (currentProvider !== 'google') {
-      // If not using Google, remove google-model
-      if (getConfig('google-model')) {
-        deleteConfig('google-model', configScope);
-        cleaned.provider.push('google-model');
+    for (const [provider, keys] of Object.entries(PROVIDER_CONFIG_KEYS)) {
+      if (provider !== currentProvider && keys) {
+        for (const key of keys) {
+          if (getConfig(key) !== undefined) {
+            deleteConfig(key, configScope);
+            cleaned.push(key);
+          }
+        }
       }
     }
-
-    // Future: When OpenAI is added, clean up openai-model if not using OpenAI
-    // if (currentProvider !== 'openai') {
-    //   if (getConfig('openai-model')) {
-    //     deleteConfig('openai-model', configScope);
-    //     cleaned.provider.push('openai-model');
-    //   }
-    // }
   }
 
-  // Clean platform-specific fields
   if (!target || target === 'platform') {
     const currentPlatform = getConfig('platform');
-
-    // Clean up fields that don't belong to current platform
-    if (currentPlatform !== 'bitbucket') {
-      // If not using Bitbucket, remove bitbucket-* fields
-      if (getConfig('bitbucket-workspace')) {
-        deleteConfig('bitbucket-workspace', configScope);
-        cleaned.platform.push('bitbucket-workspace');
-      }
-      if (getConfig('bitbucket-repo-slug')) {
-        deleteConfig('bitbucket-repo-slug', configScope);
-        cleaned.platform.push('bitbucket-repo-slug');
-      }
-      if (getConfig('bitbucket-api-token')) {
-        deleteConfig('bitbucket-api-token', configScope);
-        cleaned.platform.push('bitbucket-api-token');
-      }
-      if (getConfig('bitbucket-reviewer-uuid')) {
-        deleteConfig('bitbucket-reviewer-uuid', configScope);
-        cleaned.platform.push('bitbucket-reviewer-uuid');
+    for (const [platform, keys] of Object.entries(PLATFORM_CONFIG_KEYS)) {
+      if (platform !== currentPlatform && keys) {
+        for (const key of keys as Array<keyof ConfigSchema>) {
+          if (getConfig(key) !== undefined) {
+            deleteConfig(key, configScope);
+            cleaned.push(key);
+          }
+        }
       }
     }
-
-    if (currentPlatform !== 'gitlab') {
-      // If not using GitLab, remove gitlab-* fields
-      if (getConfig('gitlab-token')) {
-        deleteConfig('gitlab-token', configScope);
-        cleaned.platform.push('gitlab-token');
-      }
-      if (getConfig('gitlab-project-id')) {
-        deleteConfig('gitlab-project-id', configScope);
-        cleaned.platform.push('gitlab-project-id');
-      }
-      if (getConfig('gitlab-url')) {
-        deleteConfig('gitlab-url', configScope);
-        cleaned.platform.push('gitlab-url');
-      }
-    }
-
-    // GitHub has no platform-specific keys to clean up
   }
 
-  // Log cleanup operations when verbose logging is enabled
-  const allCleaned = [...cleaned.provider, ...cleaned.platform];
-  if (allCleaned.length > 0) {
-    logger.log('config', `Cleaned up redundant config keys: ${allCleaned.join(', ')}`);
+  if (cleaned.length > 0) {
+    logger.log('config', `Cleaned up redundant config keys: ${cleaned.join(', ')}`);
   }
 }
 

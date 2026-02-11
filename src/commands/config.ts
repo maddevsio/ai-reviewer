@@ -8,6 +8,8 @@ import { askGoogleModel } from '../utils/models';
 import { PROVIDER_DISPLAY_NAMES, API_KEY_VALIDATION } from '../config/constants';
 import { configCleanup, isSensitiveKey, maskApiKey } from '../utils/config';
 import { askProviderSelection } from '../utils/prompts';
+import { setupBitbucketConfig } from './init-bitbucket';
+import { setupGitLabConfig } from './init-gitlab';
 
 const VALID_KEYS: Array<keyof ConfigSchema> = [
   'provider',
@@ -64,13 +66,13 @@ configCommand
 
       // Set the provider first
       const existingScope = getConfigScope(key) || 'global';
-      setConfig(key, value as never, existingScope);
+      setConfig(key, value,existingScope);
       configCleanup('provider', existingScope);
       console.log(chalk.hex(SUCCESS_COLOR)(`✓ Set ${key} = ${value}`));
 
       // Then set the API key
       const apiKeyScope = getConfigScope('api-key') || existingScope;
-      setConfig('api-key', newApiKey as never, apiKeyScope);
+      setConfig('api-key', newApiKey,apiKeyScope);
       const maskedKey = maskApiKey(newApiKey);
       console.log(chalk.hex(SUCCESS_COLOR)(`✓ Set api-key = ${maskedKey}`));
 
@@ -101,7 +103,20 @@ configCommand
           ],
         },
       ]);
-      value = selectedPlatform;
+
+      const existingScope = getConfigScope(key) || 'global';
+      setConfig(key, selectedPlatform, existingScope);
+      configCleanup('platform', existingScope);
+      console.log(chalk.hex(SUCCESS_COLOR)(`✓ Set ${key} = ${selectedPlatform}\n`));
+
+      // Guide through platform-specific setup
+      if (selectedPlatform === 'bitbucket') {
+        await setupBitbucketConfig(existingScope);
+      } else if (selectedPlatform === 'gitlab') {
+        await setupGitLabConfig(existingScope);
+      }
+
+      return;
     }
 
     // Interactive Google model selection
@@ -173,7 +188,7 @@ configCommand
 
     // Detect which config scope to update (update existing location, or default to global)
     const existingScope = getConfigScope(key) || 'global';
-    setConfig(key, value as never, existingScope);
+    setConfig(key, value,existingScope);
 
     // Clean up redundant config when provider or platform changes
     if (key === 'provider' || key === 'platform') {
@@ -186,6 +201,15 @@ configCommand
       displayValue = maskApiKey(value);
     }
     console.log(chalk.hex(SUCCESS_COLOR)(`✓ Set ${key} = ${displayValue}`));
+
+    // Guide through platform-specific setup when value was provided directly
+    if (key === 'platform' && value === 'bitbucket') {
+      console.log();
+      await setupBitbucketConfig(existingScope);
+    } else if (key === 'platform' && value === 'gitlab') {
+      console.log();
+      await setupGitLabConfig(existingScope);
+    }
   });
 
 configCommand

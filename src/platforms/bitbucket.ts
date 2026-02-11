@@ -13,10 +13,47 @@ import {
 } from './base';
 import { parseFileChanges } from '../utils/diff-parser';
 
+// Bitbucket API response shapes
+
+interface BitbucketApiUser {
+  nickname?: string;
+  username?: string;
+  display_name: string;
+  links?: { avatar?: { href: string } };
+}
+
+interface BitbucketApiPullRequest {
+  id: number;
+  title: string;
+  state: string;
+  description?: string;
+  author: BitbucketApiUser;
+  source: { commit: { hash: string } };
+  updated_on: string;
+  created_on: string;
+  links: { html: { href: string } };
+}
+
+interface BitbucketApiComment {
+  id: number;
+  content?: { raw?: string };
+  user: BitbucketApiUser;
+  inline?: { path?: string; to?: number };
+  created_on: string;
+}
+
+interface BitbucketCommentPayload {
+  content: { raw: string };
+  inline?: {
+    path: string;
+    to: number;
+    start_to?: number;
+  };
+}
+
 interface BitbucketConfig {
   workspace: string;
   repoSlug: string;
-  username: string;
   appPassword: string;
   reviewerUuid: string;
 }
@@ -45,7 +82,6 @@ export class BitbucketPlatform extends BaseGitPlatform {
     this.config = {
       workspace,
       repoSlug,
-      username: '', // Not needed for Bearer auth
       appPassword: apiToken,
       reviewerUuid,
     };
@@ -90,9 +126,9 @@ export class BitbucketPlatform extends BaseGitPlatform {
 
       logger.logPlatform('listPullRequests', `Found ${response.data.values.length} open PRs`);
 
-      return response.data.values.map((pr: any) => this.mapPullRequest(pr));
+      return (response.data.values as BitbucketApiPullRequest[]).map((pr) => this.mapPullRequest(pr));
     } catch (error: any) {
-      this.handleApiError(error, 'list pull requests');
+      return this.handleApiError(error, 'list pull requests');
     }
   }
 
@@ -111,7 +147,7 @@ export class BitbucketPlatform extends BaseGitPlatform {
 
       const prData = prResponse.data;
       const diff = diffResponse.data;
-      const comments = commentsResponse.data.values.map((c: any) => this.mapComment(c));
+      const comments = (commentsResponse.data.values as BitbucketApiComment[]).map((c) => this.mapComment(c));
 
       const files = parseFileChanges(diff);
 
@@ -126,7 +162,7 @@ export class BitbucketPlatform extends BaseGitPlatform {
         headSha: prData.source.commit.hash,
       };
     } catch (error: any) {
-      this.handleApiError(error, 'get PR details');
+      return this.handleApiError(error, 'get PR details');
     }
   }
 
@@ -144,7 +180,7 @@ export class BitbucketPlatform extends BaseGitPlatform {
       // Append reviewer mention to comment for attribution and notifications
       const commentWithMention = `${comment.body}\n\n---\n_👤 Reviewed by @{${this.config.reviewerUuid}}_`;
 
-      const payload: any = {
+      const payload: BitbucketCommentPayload = {
         content: {
           raw: commentWithMention,
         },
@@ -173,7 +209,7 @@ export class BitbucketPlatform extends BaseGitPlatform {
 
       logger.logPlatform('postComment', `Comment posted successfully`);
     } catch (error: any) {
-      this.handleApiError(error, 'post comment');
+      return this.handleApiError(error, 'post comment');
     }
   }
 
@@ -207,11 +243,11 @@ export class BitbucketPlatform extends BaseGitPlatform {
         // (Unlike GitHub which bundles everything in a single review)
       }
     } catch (error: any) {
-      this.handleApiError(error, 'submit review');
+      return this.handleApiError(error, 'submit review');
     }
   }
 
-  private mapPullRequest(pr: any): PullRequest {
+  private mapPullRequest(pr: BitbucketApiPullRequest): PullRequest {
     let status: 'open' | 'closed' | 'merged' = 'open';
     if (pr.state === 'MERGED') {
       status = 'merged';
@@ -231,7 +267,7 @@ export class BitbucketPlatform extends BaseGitPlatform {
     };
   }
 
-  private mapAuthor(user: any): Author {
+  private mapAuthor(user: BitbucketApiUser): Author {
     return {
       username: user.nickname || user.username || user.display_name,
       name: user.display_name,
@@ -239,7 +275,7 @@ export class BitbucketPlatform extends BaseGitPlatform {
     };
   }
 
-  private mapComment(comment: any): Comment {
+  private mapComment(comment: BitbucketApiComment): Comment {
     return {
       id: comment.id.toString(),
       body: comment.content?.raw || '',

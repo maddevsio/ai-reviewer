@@ -14,6 +14,67 @@ import {
   Author,
 } from './base';
 
+// GitLab API response shapes
+
+interface GitLabApiUser {
+  username: string;
+  name: string;
+  avatar_url?: string;
+}
+
+interface GitLabApiMergeRequest {
+  iid: number;
+  title: string;
+  state: string;
+  description?: string;
+  author: GitLabApiUser;
+  sha: string;
+  diff_refs?: {
+    base_sha?: string;
+    start_sha?: string;
+    head_sha?: string;
+  };
+  updated_at: string;
+  created_at: string;
+  web_url: string;
+}
+
+interface GitLabApiDiff {
+  old_path: string;
+  new_path: string;
+  new_file: boolean;
+  deleted_file: boolean;
+  renamed_file: boolean;
+  diff?: string;
+}
+
+interface GitLabApiNote {
+  id: number;
+  body: string;
+  author: GitLabApiUser;
+  position?: { new_path?: string; new_line?: number };
+  created_at: string;
+}
+
+interface GitLabApiDiscussion {
+  notes?: GitLabApiNote[];
+}
+
+interface GitLabDiffPosition {
+  position_type: 'text';
+  old_path: string;
+  new_path: string;
+  old_line: null;
+  new_line: number;
+  base_sha: string;
+  start_sha: string;
+  head_sha: string;
+  line_range?: {
+    start: { line_code: string; type: 'new'; old_line: null; new_line: number };
+    end: { line_code: string; type: 'new'; old_line: null; new_line: number };
+  };
+}
+
 interface GitLabConfig {
   projectId: string;
   token: string;
@@ -64,6 +125,13 @@ export class GitLabPlatform extends BaseGitPlatform {
     return 'GitLab';
   }
 
+  getCommitRef(details: PullRequestDetails): string {
+    if (details.baseSha && details.startSha) {
+      return `${details.baseSha}:${details.startSha}:${details.headSha}`;
+    }
+    return details.headSha;
+  }
+
   async isAuthenticated(): Promise<boolean> {
     try {
       const url = `${this.config.url}/api/v4/user`;
@@ -91,9 +159,9 @@ export class GitLabPlatform extends BaseGitPlatform {
       logger.logApiResponse('GitLab', response.status, JSON.stringify(response.data).length, response.data);
       logger.logPlatform('listPullRequests', `Found ${response.data.length} open MRs`);
 
-      return response.data.map((mr: any) => this.mapMergeRequest(mr));
+      return (response.data as GitLabApiMergeRequest[]).map((mr) => this.mapMergeRequest(mr));
     } catch (error: any) {
-      this.handleApiError(error, 'list merge requests');
+      return this.handleApiError(error, 'list merge requests');
     }
   }
 
@@ -116,8 +184,8 @@ export class GitLabPlatform extends BaseGitPlatform {
       const summaryData = { files: diffResponse.data.length, discussions: discussionsResponse.data.length };
       logger.logApiResponse('GitLab', mrResponse.status, JSON.stringify(summaryData).length, summaryData);
 
-      const mrData = mrResponse.data;
-      const diffs = diffResponse.data;
+      const mrData: GitLabApiMergeRequest = mrResponse.data;
+      const diffs: GitLabApiDiff[] = diffResponse.data;
 
       // Convert diffs to unified diff format
       const diff = this.convertToUnifiedDiff(diffs);
@@ -126,7 +194,7 @@ export class GitLabPlatform extends BaseGitPlatform {
       const files = this.parseFilesFromDiffs(diffs);
 
       // Extract comments from discussions
-      const comments = this.extractComments(discussionsResponse.data);
+      const comments = this.extractComments(discussionsResponse.data as GitLabApiDiscussion[]);
 
       logger.logPlatform('getPullRequestDetails', `Fetched MR !${id}: ${files.length} files, ${comments.length} existing comments`);
 
@@ -149,7 +217,7 @@ export class GitLabPlatform extends BaseGitPlatform {
         startSha,
       };
     } catch (error: any) {
-      this.handleApiError(error, 'get MR details');
+      return this.handleApiError(error, 'get MR details');
     }
   }
 
@@ -168,11 +236,11 @@ export class GitLabPlatform extends BaseGitPlatform {
           : [commitSha, commitSha, commitSha];
 
         // Inline comment using discussions API
-        const position: any = {
+        const position: GitLabDiffPosition = {
           position_type: 'text',
-          old_path: comment.path,  // Same as new_path for modified files
+          old_path: comment.path,
           new_path: comment.path,
-          old_line: null,  // null for new/modified lines
+          old_line: null,
           new_line: comment.line,
           base_sha: baseSha,
           start_sha: startSha,
@@ -217,7 +285,7 @@ export class GitLabPlatform extends BaseGitPlatform {
 
       logger.logPlatform('postComment', 'Comment posted successfully');
     } catch (error: any) {
-      this.handleApiError(error, 'post comment');
+      return this.handleApiError(error, 'post comment');
     }
   }
 
@@ -266,11 +334,11 @@ export class GitLabPlatform extends BaseGitPlatform {
         }
       }
     } catch (error: any) {
-      this.handleApiError(error, 'submit review');
+      return this.handleApiError(error, 'submit review');
     }
   }
 
-  private mapMergeRequest(mr: any): PullRequest {
+  private mapMergeRequest(mr: GitLabApiMergeRequest): PullRequest {
     let status: 'open' | 'closed' | 'merged' = 'open';
     if (mr.state === 'merged') {
       status = 'merged';
@@ -290,7 +358,7 @@ export class GitLabPlatform extends BaseGitPlatform {
     };
   }
 
-  private mapAuthor(user: any): Author {
+  private mapAuthor(user: GitLabApiUser): Author {
     return {
       username: user.username,
       name: user.name,
@@ -298,7 +366,7 @@ export class GitLabPlatform extends BaseGitPlatform {
     };
   }
 
-  private extractComments(discussions: any[]): Comment[] {
+  private extractComments(discussions: GitLabApiDiscussion[]): Comment[] {
     const comments: Comment[] = [];
 
     for (const discussion of discussions) {
@@ -317,7 +385,7 @@ export class GitLabPlatform extends BaseGitPlatform {
     return comments;
   }
 
-  private convertToUnifiedDiff(diffs: any[]): string {
+  private convertToUnifiedDiff(diffs: GitLabApiDiff[]): string {
     let unifiedDiff = '';
 
     for (const file of diffs) {
@@ -341,8 +409,8 @@ export class GitLabPlatform extends BaseGitPlatform {
     return unifiedDiff;
   }
 
-  private parseFilesFromDiffs(diffs: any[]): FileChange[] {
-    return diffs.map((file: any) => ({
+  private parseFilesFromDiffs(diffs: GitLabApiDiff[]): FileChange[] {
+    return diffs.map((file) => ({
       path: file.new_path,
       additions: this.countLines(file.diff, '+'),
       deletions: this.countLines(file.diff, '-'),
@@ -353,7 +421,7 @@ export class GitLabPlatform extends BaseGitPlatform {
     }));
   }
 
-  private countLines(diff: string, prefix: string): number {
+  private countLines(diff: string | undefined, prefix: string): number {
     if (!diff) return 0;
     const regex = new RegExp(`^\\${prefix}[^${prefix}]`, 'gm');
     return (diff.match(regex) || []).length;

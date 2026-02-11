@@ -11,6 +11,56 @@ import {
 } from './base';
 import { parseFileChanges } from '../utils/diff-parser';
 
+// GitHub CLI / API response shapes
+
+interface GitHubCliAuthor {
+  login: string;
+  name?: string;
+}
+
+interface GitHubCliPullRequest {
+  number: number;
+  title: string;
+  author: GitHubCliAuthor;
+  state: string;
+  updatedAt: string;
+  createdAt: string;
+  url: string;
+  body?: string;
+  comments?: GitHubCliComment[];
+  headRefOid?: string;
+}
+
+interface GitHubCliComment {
+  id: string;
+  body: string;
+  author: GitHubCliAuthor;
+  createdAt: string;
+}
+
+interface GitHubReviewCommentParams {
+  [key: string]: unknown;
+  owner: string;
+  repo: string;
+  pull_number: number;
+  body: string;
+  commit_id: string;
+  path: string;
+  line: number;
+  side: 'RIGHT';
+  start_line?: number;
+  start_side?: 'RIGHT';
+}
+
+interface GitHubReviewComment {
+  path: string;
+  body: string;
+  line: number;
+  side: 'RIGHT';
+  start_line?: number;
+  start_side?: 'RIGHT';
+}
+
 interface RepoInfo {
   owner: string;
   repo: string;
@@ -69,9 +119,9 @@ export class GitHubPlatform extends BaseGitPlatform {
         'number,title,author,state,updatedAt,createdAt,url',
       ]);
 
-      const prs = JSON.parse(stdout);
+      const prs: GitHubCliPullRequest[] = JSON.parse(stdout);
 
-      return prs.map((pr: any) => ({
+      return prs.map((pr) => ({
         id: pr.number.toString(),
         number: pr.number,
         title: pr.title,
@@ -88,7 +138,7 @@ export class GitHubPlatform extends BaseGitPlatform {
       if (error.stderr?.includes('no pull requests')) {
         return [];
       }
-      this.handleApiError(error, 'list pull requests');
+      return this.handleApiError(error, 'list pull requests');
     }
   }
 
@@ -103,7 +153,7 @@ export class GitHubPlatform extends BaseGitPlatform {
         'number,title,author,state,updatedAt,createdAt,url,body,comments,headRefOid',
       ]);
 
-      const metadata = JSON.parse(metadataJson);
+      const metadata: GitHubCliPullRequest = JSON.parse(metadataJson);
 
       // Get PR diff
       const { stdout: diff } = await execa('gh', ['pr', 'diff', id]);
@@ -118,7 +168,7 @@ export class GitHubPlatform extends BaseGitPlatform {
           username: metadata.author.login,
           name: metadata.author.name,
         },
-        status: metadata.state.toLowerCase(),
+        status: metadata.state.toLowerCase() as 'open' | 'closed' | 'merged',
         updatedAt: this.parseDate(metadata.updatedAt),
         createdAt: this.parseDate(metadata.createdAt),
         url: metadata.url,
@@ -129,7 +179,7 @@ export class GitHubPlatform extends BaseGitPlatform {
         description: metadata.body || '',
         diff,
         files,
-        comments: metadata.comments?.map((c: any) => ({
+        comments: metadata.comments?.map((c) => ({
           id: c.id,
           body: c.body,
           author: {
@@ -138,10 +188,10 @@ export class GitHubPlatform extends BaseGitPlatform {
           },
           createdAt: this.parseDate(c.createdAt),
         })) || [],
-        headSha: metadata.headRefOid,
+        headSha: metadata.headRefOid!,
       };
     } catch (error: any) {
-      this.handleApiError(error, 'get PR details');
+      return this.handleApiError(error, 'get PR details');
     }
   }
 
@@ -152,7 +202,7 @@ export class GitHubPlatform extends BaseGitPlatform {
         const octokit = await this.getOctokit();
         const repoInfo = await this.getRepoInfo();
 
-        const reviewCommentParams: any = {
+        const reviewCommentParams: GitHubReviewCommentParams = {
           owner: repoInfo.owner,
           repo: repoInfo.repo,
           pull_number: parseInt(prId, 10),
@@ -160,7 +210,7 @@ export class GitHubPlatform extends BaseGitPlatform {
           commit_id: commitSha,
           path: comment.path,
           line: comment.line,
-          side: 'RIGHT', // Comment on the new version of the file
+          side: 'RIGHT',
         };
 
         // Add multi-line support if startLine is provided
@@ -175,7 +225,7 @@ export class GitHubPlatform extends BaseGitPlatform {
         await execa('gh', ['pr', 'comment', prId, '--body', comment.body]);
       }
     } catch (error: any) {
-      this.handleApiError(error, 'post comment');
+      return this.handleApiError(error, 'post comment');
     }
   }
 
@@ -192,7 +242,7 @@ export class GitHubPlatform extends BaseGitPlatform {
         body: body || '',
       });
     } catch (error: any) {
-      this.handleApiError(error, 'submit review');
+      return this.handleApiError(error, 'submit review');
     }
   }
 
@@ -203,7 +253,7 @@ export class GitHubPlatform extends BaseGitPlatform {
 
       // Build comments array for GitHub API
       const comments = review.comments.map((comment) => {
-        const reviewComment: any = {
+        const reviewComment: GitHubReviewComment = {
           path: comment.path!,
           body: comment.body,
           line: comment.line!,
@@ -229,7 +279,7 @@ export class GitHubPlatform extends BaseGitPlatform {
         comments: comments.length > 0 ? comments : undefined,
       });
     } catch (error: any) {
-      this.handleApiError(error, 'submit review with comments');
+      return this.handleApiError(error, 'submit review with comments');
     }
   }
 

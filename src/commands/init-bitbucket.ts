@@ -45,29 +45,36 @@ export async function setupBitbucketConfig(configScope: 'global' | 'local'): Pro
     repoSlug = result.field2;
   }
 
-  setConfig('bitbucket-workspace', workspace as never, configScope);
+  setConfig('bitbucket-workspace', workspace, configScope);
   console.log(chalk.hex(SUCCESS_COLOR)(`✓ Workspace set to: ${workspace}`));
 
-  setConfig('bitbucket-repo-slug', repoSlug as never, configScope);
+  setConfig('bitbucket-repo-slug', repoSlug, configScope);
   console.log(chalk.hex(SUCCESS_COLOR)(`✓ Repository slug set to: ${repoSlug}\n`));
+
+  // Show token info before prompting, so user knows where to create one
+  const tokenUrl = `https://bitbucket.org/${workspace}/${repoSlug}/admin/access-tokens`;
+  console.log(chalk.hex(INFO_COLOR)('ℹ️  Repository Access Token permissions required:'));
+  console.log(chalk.hex(INFO_COLOR)('   - Repositories: Read, Write'));
+  console.log(chalk.hex(INFO_COLOR)('   - Pull requests: Read, Write'));
+  console.log(chalk.hex(INFO_COLOR)(`   Create at: ${tokenUrl}\n`));
 
   const { bbApiToken } = await inquirer.prompt([
     {
       type: 'password',
       name: 'bbApiToken',
-      message: 'Enter your Bitbucket API Token:',
+      message: 'Enter your Bitbucket Repository Access Token:',
       mask: '*',
       validate: (input: string) => {
         if (!input || input.trim().length === 0) {
-          return 'API Token is required';
+          return 'Repository Access Token is required';
         }
         return true;
       },
     },
   ]);
 
-  setConfig('bitbucket-api-token', bbApiToken as never, configScope);
-  console.log(chalk.hex(SUCCESS_COLOR)('✓ Bitbucket API Token saved\n'));
+  setConfig('bitbucket-api-token', bbApiToken, configScope);
+  console.log(chalk.hex(SUCCESS_COLOR)('✓ Bitbucket Repository Access Token saved\n'));
 
   // Prompt for reviewer UUID for @mentions
   console.log(chalk.hex(INFO_COLOR)('ℹ️  Reviewer UUID is used for @mentions in review comments'));
@@ -93,12 +100,6 @@ export async function setupBitbucketConfig(configScope: 'global' | 'local'): Pro
     },
   ]);
 
-  setConfig('bitbucket-reviewer-uuid', reviewerUuid.trim() as never, configScope);
+  setConfig('bitbucket-reviewer-uuid', reviewerUuid.trim(), configScope);
   console.log(chalk.hex(SUCCESS_COLOR)('✓ Reviewer UUID saved\n'));
-
-  // Info about API tokens
-  console.log(chalk.hex(INFO_COLOR)('ℹ️  API Token permissions required:'));
-  console.log(chalk.hex(INFO_COLOR)('   - Repositories: Read, Write'));
-  console.log(chalk.hex(INFO_COLOR)('   - Pull requests: Read, Write'));
-  console.log(chalk.hex(INFO_COLOR)('   Create at: https://bitbucket.org/account/settings/api-tokens/\n'));
 }

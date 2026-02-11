@@ -36,6 +36,10 @@ const globalConfig = new Conf<ConfigSchema>({
 const LOCAL_CONFIG_DIR = '.ai-review';
 const LOCAL_CONFIG_FILE = 'config.json';
 
+// Cache for local config to avoid redundant fs.readFileSync + JSON.parse on every getConfig() call.
+// Invalidated on saveLocalConfig().
+let localConfigCache: ConfigSchema | null = null;
+
 /**
  * Get the path to the local config directory (in git repo root)
  * @returns Path to .ai-review directory or null if not in a git repo
@@ -73,19 +77,25 @@ export function getGlobalConfigPath(): string {
  * @returns Local config object or empty object if not found
  */
 function loadLocalConfig(): ConfigSchema {
+  if (localConfigCache !== null) {
+    return localConfigCache;
+  }
+
   const localConfigPath = getLocalConfigPath();
   if (!localConfigPath || !fs.existsSync(localConfigPath)) {
-    return {};
+    localConfigCache = {};
+    return localConfigCache;
   }
 
   try {
     const content = fs.readFileSync(localConfigPath, 'utf-8');
-    const config = JSON.parse(content);
-    logger.logConfigLoad('local', localConfigPath, Object.keys(config));
-    return config;
+    localConfigCache = JSON.parse(content);
+    logger.logConfigLoad('local', localConfigPath, Object.keys(localConfigCache!));
+    return localConfigCache!;
   } catch (error) {
     console.warn(`Warning: Failed to parse local config at ${localConfigPath}`);
-    return {};
+    localConfigCache = {};
+    return localConfigCache;
   }
 }
 
@@ -105,6 +115,7 @@ function saveLocalConfig(config: ConfigSchema): void {
   }
 
   fs.writeFileSync(localConfigPath, JSON.stringify(config, null, 2), 'utf-8');
+  localConfigCache = config;
 }
 
 /**
@@ -136,17 +147,17 @@ export function getConfig<K extends keyof ConfigSchema>(key: K): ConfigSchema[K]
  * @param value Config value
  * @param scope 'global' or 'local' (default: 'global')
  */
-export function setConfig<K extends keyof ConfigSchema>(
-  key: K,
-  value: NonNullable<ConfigSchema[K]>,
+export function setConfig(
+  key: keyof ConfigSchema,
+  value: string,
   scope: 'global' | 'local' = 'global'
 ): void {
   if (scope === 'local') {
     const localConfig = loadLocalConfig();
-    localConfig[key] = value;
+    (localConfig as Record<string, string>)[key] = value;
     saveLocalConfig(localConfig);
   } else {
-    globalConfig.set(key, value);
+    globalConfig.set(key as any, value);
   }
 }
 

@@ -1,9 +1,10 @@
 import { type ReviewStrictness } from '../config/manager';
 import { getStrictnessDisplayName, getStrictnessInstructions } from '../utils/strictness';
 import { ReviewComment } from '../utils/review-workflow';
+import { PullRequestDetails } from '../platforms/base';
 import { logger } from '../utils/logger';
 
-export function buildReviewPrompt(prDetails: any, strictness: ReviewStrictness): string {
+function buildPRContextSection(prDetails: PullRequestDetails, strictness: ReviewStrictness): string {
   const strictnessInstructions = getStrictnessInstructions(strictness);
 
   return `You are a code reviewer. Review the following pull request and provide specific, actionable feedback.
@@ -12,7 +13,7 @@ PR Title: ${prDetails.pr.title}
 PR Description: ${prDetails.description || 'No description provided'}
 
 Changed Files (${prDetails.files.length}):
-${prDetails.files.map((f: any) => `- ${f.path} (+${f.additions}/-${f.deletions})`).join('\n')}
+${prDetails.files.map((f) => `- ${f.path} (+${f.additions}/-${f.deletions})`).join('\n')}
 
 Full Diff:
 \`\`\`diff
@@ -20,9 +21,11 @@ ${prDetails.diff}
 \`\`\`
 
 REVIEW STRICTNESS: ${getStrictnessDisplayName(strictness)}
-${strictnessInstructions}
+${strictnessInstructions}`;
+}
 
-For each issue found, respond in this EXACT format:
+function buildResponseFormatSection(): string {
+  return `For each issue found, respond in this EXACT format:
 
 For multi-line issues (use this when the issue spans multiple lines):
 FILE: <file path>
@@ -47,9 +50,11 @@ Use single-line format (LINE) for:
 - When changed lines are not consecutive (have unchanged lines between them)
 
 RULE: If ANY line in your range does NOT have '+' prefix, you CANNOT use that range.
-Split into separate comments for each group of consecutive '+' lines instead.
+Split into separate comments for each group of consecutive '+' lines instead.`;
+}
 
-CRITICAL - UNDERSTANDING THE DIFF FORMAT:
+function buildDiffRulesSection(): string {
+  return `CRITICAL - UNDERSTANDING THE DIFF FORMAT:
 In the diff above:
 - Lines with '+' prefix = ADDED/MODIFIED code in the NEW version - THESE ARE THE ONLY LINES YOU SHOULD COMMENT ON
 - Lines with '-' prefix = REMOVED code from the OLD version - do not comment on these
@@ -69,9 +74,11 @@ MANDATORY RULE - ONLY COMMENT ON CHANGED CODE:
 - Your line numbers (LINE, START_LINE, END_LINE) MUST point to lines that have '+' prefix in the diff
 - DO NOT use line numbers of unchanged context lines (lines with space prefix)
 - DO NOT comment on code that wasn't modified in this PR
-- When you see an issue, find the '+' line in the diff and use THAT line number
+- When you see an issue, find the '+' line in the diff and use THAT line number`;
+}
 
-Example - CORRECT:
+function buildExamplesSection(): string {
+  return `Example - CORRECT:
 Diff shows:   98 │ +  [some code here]
 Your comment: LINE: 98 ✓ (has '+' prefix)
 
@@ -98,9 +105,11 @@ Example - Common mistake with blank lines:
   62 │      ← blank line with space prefix (unchanged!)
   63 │ +  [code you want to comment on]
 Wrong: LINE: 62 ✗ (blank but has space prefix = unchanged!)
-Correct: LINE: 63 ✓ (has the actual changed code with '+' prefix)
+Correct: LINE: 63 ✓ (has the actual changed code with '+' prefix)`;
+}
 
-MANDATORY VERIFICATION - DO THIS FOR EVERY SINGLE COMMENT:
+function buildVerificationSection(): string {
+  return `MANDATORY VERIFICATION - DO THIS FOR EVERY SINGLE COMMENT:
 Step 1: Identify the issue you want to comment on
 Step 2: Find the EXACT line(s) in the diff that contain the problematic code
 Step 3: Look at the prefix of each line - it MUST be '+'
@@ -119,6 +128,16 @@ Remember: You are reviewing THE CHANGES in this PR, not the entire codebase.
 Your line numbers MUST point to lines with '+' prefix. NO EXCEPTIONS.
 
 If the code looks good and has no issues, respond with: "LGTM - No issues found."`;
+}
+
+export function buildReviewPrompt(prDetails: PullRequestDetails, strictness: ReviewStrictness): string {
+  return [
+    buildPRContextSection(prDetails, strictness),
+    buildResponseFormatSection(),
+    buildDiffRulesSection(),
+    buildExamplesSection(),
+    buildVerificationSection(),
+  ].join('\n\n');
 }
 
 export function parseAIResponse(response: string): ReviewComment[] {

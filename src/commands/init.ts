@@ -114,7 +114,7 @@ export const initCommand = new Command('init')
     // Step 1: AI Provider
     const provider = await askProviderSelection();
 
-    setConfig('provider', provider as never, configScope);
+    setConfig('provider', provider, configScope);
     configCleanup('provider', configScope);
     console.log(chalk.hex(SUCCESS_COLOR)(`✓ Provider set to: ${provider}\n`));
 
@@ -135,7 +135,7 @@ export const initCommand = new Command('init')
       },
     ]);
 
-    setConfig('api-key', apiKey as never, configScope);
+    setConfig('api-key', apiKey, configScope);
     console.log(chalk.hex(SUCCESS_COLOR)('✓ API key saved\n'));
 
     // Step 3: Platform
@@ -167,7 +167,7 @@ export const initCommand = new Command('init')
       },
     ]);
 
-    setConfig('platform', gitPlatform as never, configScope);
+    setConfig('platform', gitPlatform, configScope);
     configCleanup('platform', configScope);
     console.log(chalk.hex(SUCCESS_COLOR)(`✓ Platform set to: ${gitPlatform}\n`));
 
@@ -176,7 +176,7 @@ export const initCommand = new Command('init')
       console.log(chalk.hex(INFO_COLOR)('Google Gemini model selection:\n'));
 
       const googleModel = await askGoogleModel();
-      setConfig('google-model', googleModel as never, configScope);
+      setConfig('google-model', googleModel, configScope);
       console.log(chalk.hex(SUCCESS_COLOR)(`✓ Model set to: ${googleModel}\n`));
     }
 
@@ -195,7 +195,7 @@ export const initCommand = new Command('init')
     const strictness = await askStrictnessLevel({ includeSkip: true });
 
     if (strictness) {
-      setConfig('review-strictness', strictness as never, configScope);
+      setConfig('review-strictness', strictness, configScope);
       console.log(chalk.hex(SUCCESS_COLOR)(`✓ Default strictness set to: ${strictness}\n`));
     } else {
       console.log(chalk.hex(SECONDARY_COLOR)('⊘ Skipped strictness configuration (will be asked during each review)\n'));

@@ -32,7 +32,13 @@ export async function reviewPullRequest(
   if (!prId) {
     let spinner = ora('Fetching pull requests...').start();
 
-    const prs = await platform.listPullRequests();
+    let prs;
+    try {
+      prs = await platform.listPullRequests();
+    } catch (error) {
+      spinner.fail('Failed to fetch pull requests');
+      throw error;
+    }
 
     if (prs.length === 0) {
       spinner.fail('No open pull requests found');
@@ -70,7 +76,13 @@ export async function reviewPullRequest(
 
   // Fetch PR details
   let spinner = ora(`Fetching PR #${prId}...`).start();
-  const prDetails = await platform.getPullRequestDetails(prId!);
+  let prDetails;
+  try {
+    prDetails = await platform.getPullRequestDetails(prId!);
+  } catch (error) {
+    spinner.fail(`Failed to fetch PR #${prId}`);
+    throw error;
+  }
   spinner.succeed(`PR #${prId} fetched - ${prDetails.files.length} file(s) changed`);
 
   // Parse the diff for code context extraction
@@ -86,7 +98,13 @@ export async function reviewPullRequest(
 
   // Send to AI for review
   spinner = ora('Analyzing code changes with AI...').start();
-  const aiResponse = await aiProvider.sendPrompt(reviewPrompt);
+  let aiResponse;
+  try {
+    aiResponse = await aiProvider.sendPrompt(reviewPrompt);
+  } catch (error) {
+    spinner.fail('AI analysis failed');
+    throw error;
+  }
   spinner.succeed('Analysis complete');
 
   // Parse AI response into review comments
@@ -134,19 +152,21 @@ export async function reviewPullRequest(
       })
     : [];
 
-  // Format commit SHAs for GitLab (base:start:head)
-  const commitShaForPlatform = prDetails.baseSha && prDetails.startSha
-    ? `${prDetails.baseSha}:${prDetails.startSha}:${prDetails.headSha}`
-    : prDetails.headSha;
+  const commitShaForPlatform = platform.getCommitRef(prDetails);
 
   // Helper to submit a review action with spinner
   const submitWithSpinner = async (spinnerText: string, action: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT', body: string | undefined, successText: string) => {
     spinner = ora(spinnerText).start();
-    await platform.submitReviewWithComments(
-      prId!,
-      { action, body, comments: commentsForSubmission },
-      commitShaForPlatform
-    );
+    try {
+      await platform.submitReviewWithComments(
+        prId!,
+        { action, body, comments: commentsForSubmission },
+        commitShaForPlatform
+      );
+    } catch (error) {
+      spinner.fail('Submission failed');
+      throw error;
+    }
     spinner.succeed(chalk.hex(SUCCESS_COLOR)(successText));
   };
 

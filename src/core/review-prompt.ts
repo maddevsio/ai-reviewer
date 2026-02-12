@@ -4,15 +4,24 @@ import { ReviewComment } from '../utils/review-workflow';
 import { PullRequestDetails } from '../platforms/base';
 import { logger } from '../utils/logger';
 
-function buildPRContextSection(prDetails: PullRequestDetails, strictness: ReviewStrictness): string {
+function buildPRContextSection(prDetails: PullRequestDetails, strictness: ReviewStrictness, projectContext?: string): string {
   const strictnessInstructions = getStrictnessInstructions(strictness);
 
-  return `You are a code reviewer. Review the following pull request and provide specific, actionable feedback.
+  let section = `You are a code reviewer. Review the following pull request and provide specific, actionable feedback.
 
 PR Title: ${prDetails.pr.title}
-PR Description: ${prDetails.description || 'No description provided'}
+PR Description: ${prDetails.description || 'No description provided'}`;
 
-Changed Files (${prDetails.files.length}):
+  if (projectContext) {
+    section += `\n\nPROJECT-SPECIFIC CONTEXT:
+The following documentation from this project contains conventions, guidelines, and decisions.
+When these conflict with general best practices, the project-specific rules take priority.
+Apply these ONLY when evaluating changed lines ('+' prefix in the diff). Do NOT flag issues in unchanged surrounding code, even if it violates these guidelines.
+
+${projectContext}`;
+  }
+
+  section += `\n\nChanged Files (${prDetails.files.length}):
 ${prDetails.files.map((f) => `- ${f.path} (+${f.additions}/-${f.deletions})`).join('\n')}
 
 Full Diff:
@@ -22,6 +31,8 @@ ${prDetails.diff}
 
 REVIEW STRICTNESS: ${getStrictnessDisplayName(strictness)}
 ${strictnessInstructions}`;
+
+  return section;
 }
 
 function buildResponseFormatSection(): string {
@@ -130,9 +141,9 @@ Your line numbers MUST point to lines with '+' prefix. NO EXCEPTIONS.
 If the code looks good and has no issues, respond with: "LGTM - No issues found."`;
 }
 
-export function buildReviewPrompt(prDetails: PullRequestDetails, strictness: ReviewStrictness): string {
+export function buildReviewPrompt(prDetails: PullRequestDetails, strictness: ReviewStrictness, projectContext?: string): string {
   return [
-    buildPRContextSection(prDetails, strictness),
+    buildPRContextSection(prDetails, strictness, projectContext),
     buildResponseFormatSection(),
     buildDiffRulesSection(),
     buildExamplesSection(),

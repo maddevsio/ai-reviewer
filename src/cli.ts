@@ -26,6 +26,7 @@ Examples:
   $ ai-review config set provider          # Set AI provider (interactive)
   $ ai-review config set api-key           # Set API key (interactive)
   $ ai-review config set platform          # Set git platform (interactive)
+  $ ai-review config scan-docs             # Scan project docs for review context
 
 Commands:
   demo [id]        Try the tool with mock data (no setup required)
@@ -58,6 +59,9 @@ Commands:
       get <key>            Get a configuration value
       list                 Show all configuration settings and active config source
       delete <key>         Delete a configuration value
+      scan-docs            Scan project for .md files to use as review context
+                           Saves selected docs to .ai-review/context.md
+                           Also offered during init (local scope only)
 `);
 
 // Register commands

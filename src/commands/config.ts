@@ -10,6 +10,8 @@ import { configCleanup, isSensitiveKey, maskApiKey } from '../utils/config';
 import { askProviderSelection } from '../utils/prompts';
 import { setupBitbucketConfig } from './init-bitbucket';
 import { setupGitLabConfig } from './init-gitlab';
+import { scanAndSaveProjectDocs } from './scan-docs';
+import { findGitRepoRoot } from '../utils/git';
 
 const VALID_KEYS: Array<keyof ConfigSchema> = [
   'provider',
@@ -265,4 +267,17 @@ configCommand
     }
     deleteConfig(key);
     console.log(chalk.hex(SUCCESS_COLOR)(`✓ Deleted ${key}`));
+  });
+
+configCommand
+  .command('scan-docs')
+  .description('Scan project for documentation files (.md) to use as review context')
+  .action(async () => {
+    const repoRoot = findGitRepoRoot();
+    if (!repoRoot) {
+      console.log(chalk.hex(ERROR_COLOR)('✗ Not in a git repository. Documentation scanning requires a local project.'));
+      process.exit(1);
+    }
+
+    await scanAndSaveProjectDocs(repoRoot);
   });

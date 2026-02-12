@@ -218,6 +218,18 @@ export function getConfigScope<K extends keyof ConfigSchema>(key: K): 'local' | 
 }
 
 /**
+ * Get the path to the context file (.ai-review/context.md)
+ * @returns Path to context.md or null if not in a git repo
+ */
+export function getContextFilePath(): string | null {
+  const configDir = getLocalConfigDir();
+  if (!configDir) {
+    return null;
+  }
+  return path.join(configDir, 'context.md');
+}
+
+/**
  * Get information about active config location
  * @returns Object with config source info
  */

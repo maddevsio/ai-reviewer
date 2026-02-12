@@ -106,6 +106,7 @@ This interactive wizard will guide you through:
    - **GitLab**: namespace, project name, Personal Access Token, instance URL (optional)
      - Auto-detects namespace/project from git remote (if available) - you can accept or enter custom values
 5. Optional: Review strictness level (easy, normal, balanced, strict, pedantic)
+6. Optional (local config only): Scan project for `.md` documentation files to use as review context
 
 ### 2. Get Your API Key
 
@@ -231,6 +232,12 @@ ai-review config get provider
 ```bash
 ai-review config delete api-key
 ```
+
+**Scan project docs for review context:**
+```bash
+ai-review config scan-docs
+```
+Scans for `.md` files in the project, lets you select which ones to include, and saves them to `.ai-review/context.md`. This context is injected into every review prompt so the AI considers your project's conventions and guidelines. Requires a git repository (local scope only).
 
 ### Configuration Management
 
@@ -605,6 +612,12 @@ ai-review config list
 - **Always add `.ai-review/` to your `.gitignore`** to prevent accidentally committing API keys and tokens to version control.
 - Global config is stored in your user directory and is not at risk of being committed.
 
+### Can I add project-specific review guidelines?
+
+Yes! During `ai-review init` (local scope), you'll be offered to scan the project for `.md` documentation files. Selected files are saved to `.ai-review/context.md` and included in every review prompt. You can also re-scan anytime with `ai-review config scan-docs`.
+
+Project-specific guidelines take priority over general best practices when they conflict, but only apply to changed lines — the AI won't flag issues in unchanged surrounding code.
+
 ### Can I customize the AI's review style?
 
 Yes! Use review strictness levels to control how thorough the AI review should be:
@@ -668,7 +681,6 @@ Available categories: `api`, `api-detailed`, `config`, `prompt`, `diff`, `platfo
 
 **Future Plans:**
 - OpenAI GPT-4 provider
-- Project-specific review guidelines (`.aireview` file)
 
 ## Development Setup
 

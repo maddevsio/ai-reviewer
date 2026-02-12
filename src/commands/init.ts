@@ -12,6 +12,7 @@ import { configCleanup, isSensitiveKey, maskApiKey } from '../utils/config';
 import { askYesNo, askProviderSelection } from '../utils/prompts';
 import { setupBitbucketConfig } from './init-bitbucket';
 import { setupGitLabConfig } from './init-gitlab';
+import { scanAndSaveProjectDocs } from './scan-docs';
 
 function getGitHubCLIInstallCommand(): string {
   const os = platform();
@@ -199,6 +200,19 @@ export const initCommand = new Command('init')
       console.log(chalk.hex(SUCCESS_COLOR)(`✓ Default strictness set to: ${strictness}\n`));
     } else {
       console.log(chalk.hex(SECONDARY_COLOR)('⊘ Skipped strictness configuration (will be asked during each review)\n'));
+    }
+
+    // Step 7: Documentation scanning (local scope only)
+    if (configScope === 'local' && repoRoot) {
+      console.log(chalk.hex(INFO_COLOR)('Project documentation scanning (optional):\n'));
+      const wantsScan = await askYesNo('Scan project for documentation files (.md) to use as review context?');
+
+      if (wantsScan) {
+        console.log();
+        await scanAndSaveProjectDocs(repoRoot);
+      } else {
+        console.log(chalk.hex(SECONDARY_COLOR)('\n⊘ Skipped documentation scanning\n'));
+      }
     }
 
     // Summary

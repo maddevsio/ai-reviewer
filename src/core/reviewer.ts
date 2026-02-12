@@ -13,11 +13,12 @@ import {
   handlePRApprovalWorkflow,
   ReviewOptions,
 } from '../utils/review-workflow';
-import { getConfig, type ReviewStrictness } from '../config/manager';
+import { getConfig, getContextFilePath, type ReviewStrictness } from '../config/manager';
 import { askStrictnessLevel, getStrictnessDisplayName } from '../utils/strictness';
 import { logger } from '../utils/logger';
 import { buildReviewPrompt, parseAIResponse } from './review-prompt';
 import { CHARS_PER_TOKEN_ESTIMATE } from '../config/constants';
+import * as fs from 'fs';
 
 export async function reviewPullRequest(
   prId: string | undefined,
@@ -91,8 +92,16 @@ export async function reviewPullRequest(
   const totalDeletions = prDetails.files.reduce((sum, f) => sum + f.deletions, 0);
   logger.logDiff(prDetails.files.length, totalAdditions, totalDeletions);
 
+  // Load project documentation context if available
+  const contextFilePath = getContextFilePath();
+  let projectContext: string | undefined;
+  if (contextFilePath && fs.existsSync(contextFilePath)) {
+    projectContext = fs.readFileSync(contextFilePath, 'utf-8');
+    logger.log('prompt', `Loaded project context from ${contextFilePath} (${projectContext.length} chars)`);
+  }
+
   // Prepare the prompt for AI review
-  const reviewPrompt = buildReviewPrompt(prDetails, strictness);
+  const reviewPrompt = buildReviewPrompt(prDetails, strictness, projectContext);
   const promptTokens = Math.ceil(reviewPrompt.length / CHARS_PER_TOKEN_ESTIMATE);
   logger.logPrompt(promptTokens, strictness, prDetails.files.length);
 

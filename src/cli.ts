@@ -3,6 +3,7 @@ import { initCommand } from './commands/init';
 import { configCommand } from './commands/config';
 import { prCommand } from './commands/pr';
 import { demoCommand } from './commands/demo';
+import { scanDocsCommand } from './commands/scan-docs';
 
 export const program = new Command();
 
@@ -26,7 +27,7 @@ Examples:
   $ ai-review config set provider          # Set AI provider (interactive)
   $ ai-review config set api-key           # Set API key (interactive)
   $ ai-review config set platform          # Set git platform (interactive)
-  $ ai-review config scan-docs             # Scan project docs for review context
+  $ ai-review scan-docs                    # Scan project docs for review context
 
 Commands:
   demo [id]        Try the tool with mock data (no setup required)
@@ -59,9 +60,11 @@ Commands:
       get <key>            Get a configuration value
       list                 Show all configuration settings and active config source
       delete <key>         Delete a configuration value
-      scan-docs            Scan project for .md files to use as review context
-                           Saves selected docs to .ai-review/context.md
-                           Also offered during init (local scope only)
+
+  scan-docs        Scan project for .md files to use as review context
+                   Saves selected docs to .ai-review/context.md
+                   Remembers previous selections on re-runs
+                   Also offered during init (local scope only)
 `);
 
 // Register commands
@@ -69,3 +72,4 @@ program.addCommand(demoCommand); // Demo mode - no setup required
 program.addCommand(initCommand);
 program.addCommand(configCommand);
 program.addCommand(prCommand);
+program.addCommand(scanDocsCommand);

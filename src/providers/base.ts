@@ -1,6 +1,6 @@
 /**
  * Base interface for AI providers
- * All AI providers (Anthropic, OpenAI, Google) must implement this interface
+ * All AI providers (Anthropic, Google, Groq, OpenAI) must implement this interface
  */
 
 export interface AIProvider {

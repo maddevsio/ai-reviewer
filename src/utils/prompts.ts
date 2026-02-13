@@ -103,6 +103,10 @@ export async function askProviderSelection(): Promise<string> {
           value: 'google',
         },
         {
+          name: `${chalk.hex(SUCCESS_COLOR)('✓')} Groq (Llama) - Available (Free)`,
+          value: 'groq',
+        },
+        {
           name: chalk.hex(SECONDARY_COLOR)('🚧 OpenAI (GPT) - Coming soon'),
           value: 'openai',
           disabled: true,

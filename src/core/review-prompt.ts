@@ -127,6 +127,11 @@ Step 3: Look at the prefix of each line - it MUST be '+'
 Step 4: Write down the line number(s)
 Step 5: DOUBLE-CHECK: Go back to the diff and verify that line has '+' prefix
 Step 6: If the line has ' ' or '-' prefix, FIND THE NEAREST '+' LINE instead
+Step 7: CONTENT CROSS-CHECK: Re-read the actual code at your chosen line number in the diff.
+  - Does the code at that line match what your comment is about?
+  - If your comment mentions a variable, function, or value — is it actually present on that line?
+  - If NOT, scan nearby '+' lines for the code you're referencing and correct the line number.
+  - Example: Your comment says "rename \`fetchData\`" and you wrote LINE: 45, but line 45 is \`const x = 1;\` → WRONG. Find the line that actually has \`fetchData\` and use that number.
 
 Common mistakes to avoid:
 ✗ Line 62 is blank with space prefix → "I'll comment on line 62" - WRONG!
@@ -135,8 +140,12 @@ Common mistakes to avoid:
 ✗ "This change affects lines 60-65" → Lines 61,62 have space prefix - WRONG!
 ✓ "This change affects lines 60,63,64,65" → Only these have '+' - CORRECT! (use separate comments)
 
+✗ Comment says "rename this function" but the line number points to an import statement - WRONG!
+✓ Comment says "rename this function" and the line number points to the function definition - CORRECT!
+
 Remember: You are reviewing THE CHANGES in this PR, not the entire codebase.
 Your line numbers MUST point to lines with '+' prefix. NO EXCEPTIONS.
+Your line numbers MUST point to the code your comment is actually about. VERIFY THE CONTENT MATCHES.
 
 If the code looks good and has no issues, respond with: "LGTM - No issues found."`;
 }

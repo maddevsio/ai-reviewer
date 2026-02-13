@@ -4,7 +4,7 @@ import * as path from 'path';
 import { findGitRepoRoot } from '../utils/git';
 import { logger } from '../utils/logger';
 
-export type AIProvider = 'anthropic' | 'openai' | 'google';
+export type AIProvider = 'anthropic' | 'openai' | 'google' | 'groq';
 export type Platform = 'github' | 'gitlab' | 'bitbucket';
 export type ReviewStrictness = 'easy' | 'normal' | 'balanced' | 'strict' | 'pedantic';
 
@@ -16,6 +16,8 @@ export interface ConfigSchema {
   'review-strictness'?: ReviewStrictness;
   // Google-specific fields
   'google-model'?: string;
+  // Groq-specific fields
+  'groq-model'?: string;
   // Bitbucket-specific fields
   'bitbucket-workspace'?: string;
   'bitbucket-repo-slug'?: string;

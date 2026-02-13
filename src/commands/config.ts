@@ -4,7 +4,7 @@ import inquirer from 'inquirer';
 import { getConfig, setConfig, deleteConfig, listConfig, ConfigSchema, getConfigInfo, getConfigScope, AIProvider } from '../config/manager';
 import { SUCCESS_COLOR, ERROR_COLOR, WARNING_COLOR, SECONDARY_COLOR, HIGHLIGHT_COLOR } from '../utils/colors';
 import { askStrictnessLevel } from '../utils/strictness';
-import { askGoogleModel } from '../utils/models';
+import { askGoogleModel, askGroqModel } from '../utils/models';
 import { PROVIDER_DISPLAY_NAMES, API_KEY_VALIDATION } from '../config/constants';
 import { configCleanup, isSensitiveKey, maskApiKey } from '../utils/config';
 import { askProviderSelection } from '../utils/prompts';
@@ -26,6 +26,7 @@ const VALID_KEYS: Array<keyof ConfigSchema> = [
   'gitlab-token',
   'gitlab-project-id',
   'gitlab-url',
+  'groq-model',
 ];
 
 function isValidConfigKey(key: string): key is keyof ConfigSchema {
@@ -37,7 +38,7 @@ export const configCommand = new Command('config')
 
 configCommand
   .command('set <key> [value]')
-  .description('Set a configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-api-token, bitbucket-reviewer-uuid, gitlab-token, gitlab-project-id, gitlab-url. Omit value for interactive input.')
+  .description('Set a configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, groq-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-api-token, bitbucket-reviewer-uuid, gitlab-token, gitlab-project-id, gitlab-url. Omit value for interactive input.')
   .action(async (key: string, value?: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));
@@ -124,6 +125,11 @@ configCommand
     // Interactive Google model selection
     if (key === 'google-model' && !value) {
       value = await askGoogleModel();
+    }
+
+    // Interactive Groq model selection
+    if (key === 'groq-model' && !value) {
+      value = await askGroqModel();
     }
 
     // Interactive review strictness selection
@@ -216,7 +222,7 @@ configCommand
 
 configCommand
   .command('get <key>')
-  .description('Get a specific configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-api-token, bitbucket-reviewer-uuid, gitlab-token, gitlab-project-id, gitlab-url.')
+  .description('Get a specific configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, groq-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-api-token, bitbucket-reviewer-uuid, gitlab-token, gitlab-project-id, gitlab-url.')
   .action((key: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));
@@ -258,7 +264,7 @@ configCommand
 
 configCommand
   .command('delete <key>')
-  .description('Remove a configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-api-token, bitbucket-reviewer-uuid, gitlab-token, gitlab-project-id, gitlab-url.')
+  .description('Remove a configuration value. Valid keys: provider, api-key, platform, review-strictness, google-model, groq-model, bitbucket-workspace, bitbucket-repo-slug, bitbucket-api-token, bitbucket-reviewer-uuid, gitlab-token, gitlab-project-id, gitlab-url.')
   .action((key: string) => {
     if (!isValidConfigKey(key)) {
       console.log(chalk.hex(ERROR_COLOR)(`✗ Invalid config key: ${key}`));

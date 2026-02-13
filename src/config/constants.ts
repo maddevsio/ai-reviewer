@@ -4,6 +4,9 @@ import { AIProvider, Platform, ReviewStrictness, ConfigSchema } from './manager'
 export const SONNET_45_MODEL = 'claude-sonnet-4-5-20250929';
 export const GEMINI_25_FLASH_MODEL = 'gemini-2.5-flash';
 export const GEMINI_3_FLASH_MODEL = 'gemini-3-flash-preview';
+export const GROQ_LLAMA_70B_MODEL = 'llama-3.3-70b-versatile';
+export const GROQ_LLAMA_4_SCOUT_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
+export const GROQ_LLAMA_8B_MODEL = 'llama-3.1-8b-instant';
 
 // --- API defaults ---
 export const BITBUCKET_API_BASE_URL = 'https://api.bitbucket.org/2.0';
@@ -32,6 +35,7 @@ export const SENSITIVE_KEYS: Array<keyof import('./manager').ConfigSchema> = [
  */
 export const PROVIDER_CONFIG_KEYS: Partial<Record<AIProvider, Array<keyof ConfigSchema>>> = {
   google: ['google-model'],
+  groq: ['groq-model'],
 };
 
 /**
@@ -50,6 +54,7 @@ export const PROVIDER_DISPLAY_NAMES: Record<AIProvider, string> = {
   anthropic: 'Anthropic',
   google: 'Google',
   openai: 'OpenAI',
+  groq: 'Groq',
 };
 
 /**
@@ -94,6 +99,15 @@ export const API_KEY_VALIDATION: Record<
     validate: (key: string) => {
       if (!key.startsWith('sk-')) {
         return 'OpenAI API keys should start with "sk-"';
+      }
+      return true;
+    },
+  },
+  groq: {
+    prefix: 'gsk_',
+    validate: (key: string) => {
+      if (!key.startsWith('gsk_')) {
+        return 'Groq API keys should start with "gsk_"';
       }
       return true;
     },

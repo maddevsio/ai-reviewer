@@ -6,7 +6,7 @@ import { setConfig, listConfig, getConfigInfo, AIProvider } from '../config/mana
 import { SUCCESS_COLOR, INFO_COLOR, SECONDARY_COLOR, HIGHLIGHT_COLOR, WARNING_COLOR } from '../utils/colors';
 import { findGitRepoRoot } from '../utils/git';
 import { askStrictnessLevel } from '../utils/strictness';
-import { askGoogleModel } from '../utils/models';
+import { askGoogleModel, askGroqModel } from '../utils/models';
 import { PROVIDER_DISPLAY_NAMES, API_KEY_VALIDATION } from '../config/constants';
 import { configCleanup, isSensitiveKey, maskApiKey } from '../utils/config';
 import { askYesNo, askProviderSelection } from '../utils/prompts';
@@ -139,7 +139,24 @@ export const initCommand = new Command('init')
     setConfig('api-key', apiKey, configScope);
     console.log(chalk.hex(SUCCESS_COLOR)('✓ API key saved\n'));
 
-    // Step 3: Platform
+    // Step 3: Provider-specific model configuration
+    if (provider === 'google') {
+      console.log(chalk.hex(INFO_COLOR)('Google Gemini model selection:\n'));
+
+      const googleModel = await askGoogleModel();
+      setConfig('google-model', googleModel, configScope);
+      console.log(chalk.hex(SUCCESS_COLOR)(`✓ Model set to: ${googleModel}\n`));
+    }
+
+    if (provider === 'groq') {
+      console.log(chalk.hex(INFO_COLOR)('Groq model selection:\n'));
+
+      const groqModel = await askGroqModel();
+      setConfig('groq-model', groqModel, configScope);
+      console.log(chalk.hex(SUCCESS_COLOR)(`✓ Model set to: ${groqModel}\n`));
+    }
+
+    // Step 4: Platform
     const { gitPlatform } = await inquirer.prompt([
       {
         type: 'list',
@@ -171,15 +188,6 @@ export const initCommand = new Command('init')
     setConfig('platform', gitPlatform, configScope);
     configCleanup('platform', configScope);
     console.log(chalk.hex(SUCCESS_COLOR)(`✓ Platform set to: ${gitPlatform}\n`));
-
-    // Step 4: Google-specific configuration
-    if (provider === 'google') {
-      console.log(chalk.hex(INFO_COLOR)('Google Gemini model selection:\n'));
-
-      const googleModel = await askGoogleModel();
-      setConfig('google-model', googleModel, configScope);
-      console.log(chalk.hex(SUCCESS_COLOR)(`✓ Model set to: ${googleModel}\n`));
-    }
 
     // Step 5: Platform-specific configuration
     if (gitPlatform === 'bitbucket') {

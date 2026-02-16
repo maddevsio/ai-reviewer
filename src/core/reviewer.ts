@@ -5,7 +5,7 @@ import { createGitPlatform } from '../platforms/factory';
 import { createAIProvider } from '../providers/factory';
 import { formatDistanceToNow } from '../utils/date';
 import { parseDiff } from '../utils/diff-parser';
-import { INFO_COLOR, SUCCESS_COLOR, SECONDARY_COLOR } from '../utils/colors';
+import { INFO_COLOR, SUCCESS_COLOR, SECONDARY_COLOR } from '../config/colors';
 import {
   reviewCommentsInteractively,
   askPostCommentsDecision,

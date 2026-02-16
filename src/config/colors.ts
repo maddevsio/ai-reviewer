@@ -5,6 +5,7 @@
 // Background colors for diffs
 export const ADDED_LINE_BG = '#022800';      // Dark green (terminal style)
 export const REMOVED_LINE_BG = '#3d0100';    // Dark red (terminal style)
+export const CONTEXT_LINE_BG = '#3c3c3c';    // Dark gray (GitHub dark theme style)
 
 // Text colors for diff lines
 export const ADDED_LINE_TEXT = '#ffffff';    // White text for added lines

@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { getConfig, setConfig, deleteConfig, listConfig, ConfigSchema, getConfigInfo, getConfigScope, AIProvider } from '../config/manager';
-import { SUCCESS_COLOR, ERROR_COLOR, WARNING_COLOR, SECONDARY_COLOR, HIGHLIGHT_COLOR } from '../utils/colors';
+import { SUCCESS_COLOR, ERROR_COLOR, WARNING_COLOR, SECONDARY_COLOR, HIGHLIGHT_COLOR } from '../config/colors';
 import { askStrictnessLevel } from '../utils/strictness';
 import { askGoogleModel, askGroqModel } from '../utils/models';
 import { PROVIDER_DISPLAY_NAMES, API_KEY_VALIDATION } from '../config/constants';
@@ -10,7 +10,6 @@ import { configCleanup, isSensitiveKey, maskApiKey } from '../utils/config';
 import { askProviderSelection } from '../utils/prompts';
 import { setupBitbucketConfig } from './init-bitbucket';
 import { setupGitLabConfig } from './init-gitlab';
-import { findGitRepoRoot } from '../utils/git';
 
 const VALID_KEYS: Array<keyof ConfigSchema> = [
   'provider',

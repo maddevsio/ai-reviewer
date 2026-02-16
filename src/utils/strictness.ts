@@ -2,7 +2,7 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import { ReviewStrictness } from '../config/manager';
 import { STRICTNESS_LEVELS, StrictnessLevel } from '../config/constants';
-import { SECONDARY_COLOR } from './colors';
+import { SECONDARY_COLOR } from '../config/colors';
 
 /**
  * Interactive strictness level selection prompt.

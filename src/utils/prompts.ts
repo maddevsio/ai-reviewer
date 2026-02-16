@@ -1,7 +1,7 @@
 import * as readline from 'readline';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { DISABLED_COLOR, WARNING_COLOR, SUCCESS_COLOR, SECONDARY_COLOR } from './colors';
+import { DISABLED_COLOR, WARNING_COLOR, SUCCESS_COLOR, SECONDARY_COLOR } from '../config/colors';
 
 /**
  * Ask a yes/no question that requires explicit y or n keypress

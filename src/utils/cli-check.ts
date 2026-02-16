@@ -1,7 +1,7 @@
 import execa from 'execa';
 import chalk from 'chalk';
 import { platform } from 'os';
-import { ERROR_COLOR, WARNING_COLOR, HIGHLIGHT_COLOR, SECONDARY_COLOR } from './colors';
+import { ERROR_COLOR, WARNING_COLOR, HIGHLIGHT_COLOR, SECONDARY_COLOR } from '../config/colors';
 
 export async function checkGitHubCLI(): Promise<{ installed: boolean; authenticated: boolean }> {
   // Check if gh is installed

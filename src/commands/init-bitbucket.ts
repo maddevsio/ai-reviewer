@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { setConfig } from '../config/manager';
-import { SUCCESS_COLOR, INFO_COLOR } from '../utils/colors';
+import { SUCCESS_COLOR, INFO_COLOR } from '../config/colors';
 import { getGitRemoteUrl, parseBitbucketUrl } from '../utils/git';
 import { askYesNo } from '../utils/prompts';
 import { promptForRepoIdentifiers } from './init';

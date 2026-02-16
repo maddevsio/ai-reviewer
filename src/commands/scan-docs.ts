@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { SUCCESS_COLOR, INFO_COLOR, SECONDARY_COLOR, WARNING_COLOR, ERROR_COLOR } from '../utils/colors';
+import { SUCCESS_COLOR, INFO_COLOR, SECONDARY_COLOR, WARNING_COLOR, ERROR_COLOR } from '../config/colors';
 import { findGitRepoRoot } from '../utils/git';
 
 const CONTEXT_FILE_NAME = 'context.md';

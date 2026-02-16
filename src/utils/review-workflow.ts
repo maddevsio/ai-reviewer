@@ -11,7 +11,7 @@ import {
   SUCCESS_COLOR,
   WARNING_COLOR,
   SECONDARY_COLOR,
-} from './colors';
+} from '../config/colors';
 import type { ReviewStrictness } from '../config/manager';
 import { SEPARATOR_CHAR, SEPARATOR_WIDTH } from '../config/constants';
 

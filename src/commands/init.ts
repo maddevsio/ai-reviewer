@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { platform } from 'os';
 import { setConfig, listConfig, getConfigInfo, AIProvider } from '../config/manager';
-import { SUCCESS_COLOR, INFO_COLOR, SECONDARY_COLOR, HIGHLIGHT_COLOR, WARNING_COLOR } from '../utils/colors';
+import { SUCCESS_COLOR, INFO_COLOR, SECONDARY_COLOR, HIGHLIGHT_COLOR, WARNING_COLOR } from '../config/colors';
 import { findGitRepoRoot } from '../utils/git';
 import { askStrictnessLevel } from '../utils/strictness';
 import { askGoogleModel, askGroqModel } from '../utils/models';

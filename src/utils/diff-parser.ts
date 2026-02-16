@@ -148,6 +148,7 @@ export function getCodeContext(
 export interface CodeRegion {
   lines: string[];
   startLineNum: number;
+  isContext?: boolean; // true for distant context blocks, false/undefined for main comment target
 }
 
 /**
@@ -162,19 +163,19 @@ export function getMultiRegionCodeContext(
   refRanges: [number, number][]
 ): CodeRegion[] {
   // Build list of all ranges to show: ref ranges (1 line context) + main range
-  const allRanges: { target: number; context: number }[] = [];
+  const allRanges: { target: number; context: number; isContext: boolean }[] = [];
 
   for (const [start, end] of refRanges) {
     const mid = Math.floor((start + end) / 2);
     const halfRange = Math.ceil((end - start) / 2);
-    allRanges.push({ target: mid, context: halfRange + 1 });
+    allRanges.push({ target: mid, context: halfRange + 1, isContext: true });
   }
 
   // Main range last
-  allRanges.push({ target: mainTarget, context: mainContext });
+  allRanges.push({ target: mainTarget, context: mainContext, isContext: false });
 
   // Get raw code context for each range
-  const rawRegions: { lines: string[]; startLineNum: number; endLineNum: number }[] = [];
+  const rawRegions: { lines: string[]; startLineNum: number; endLineNum: number; isContext: boolean }[] = [];
 
   for (const range of allRanges) {
     const lines = getCodeContext(parsedFiles, filePath, range.target, range.context);
@@ -191,7 +192,7 @@ export function getMultiRegionCodeContext(
       }
     }
 
-    rawRegions.push({ lines, startLineNum, endLineNum });
+    rawRegions.push({ lines, startLineNum, endLineNum, isContext: range.isContext });
   }
 
   if (rawRegions.length === 0) return [];
@@ -200,7 +201,7 @@ export function getMultiRegionCodeContext(
   rawRegions.sort((a, b) => a.startLineNum - b.startLineNum);
 
   // Merge overlapping or adjacent regions
-  const merged: { lines: string[]; startLineNum: number; endLineNum: number }[] = [rawRegions[0]];
+  const merged: { lines: string[]; startLineNum: number; endLineNum: number; isContext: boolean }[] = [rawRegions[0]];
 
   for (let i = 1; i < rawRegions.length; i++) {
     const prev = merged[merged.length - 1];
@@ -208,6 +209,7 @@ export function getMultiRegionCodeContext(
 
     if (curr.startLineNum <= prev.endLineNum + 1) {
       // Overlapping or adjacent — re-fetch as one combined region
+      // If either region is the main target, the merged result is main (not ref)
       const combinedStart = prev.startLineNum;
       const combinedEnd = Math.max(prev.endLineNum, curr.endLineNum);
       const combinedMid = Math.floor((combinedStart + combinedEnd) / 2);
@@ -219,6 +221,7 @@ export function getMultiRegionCodeContext(
           lines: combinedLines,
           startLineNum: combinedStart,
           endLineNum: combinedEnd,
+          isContext: prev.isContext && curr.isContext,
         };
       }
     } else {
@@ -226,7 +229,7 @@ export function getMultiRegionCodeContext(
     }
   }
 
-  return merged.map(({ lines, startLineNum }) => ({ lines, startLineNum }));
+  return merged.map(({ lines, startLineNum, isContext }) => ({ lines, startLineNum, isContext }));
 }
 
 /**

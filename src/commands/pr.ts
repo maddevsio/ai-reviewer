@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import { reviewPullRequest } from '../core/reviewer';
 import { hasConfig } from '../config/manager';
 import { initCommand } from './init';
-import { SUCCESS_COLOR, WARNING_COLOR, ERROR_COLOR, SECONDARY_COLOR } from '../utils/colors';
+import { SUCCESS_COLOR, WARNING_COLOR, ERROR_COLOR, SECONDARY_COLOR } from '../config/colors';
 import { askYesNo } from '../utils/prompts';
 import { isValidStrictness } from '../utils/strictness';
 import type { ReviewStrictness } from '../config/manager';

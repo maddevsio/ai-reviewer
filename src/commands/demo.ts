@@ -4,7 +4,7 @@ import inquirer from 'inquirer';
 import ora from 'ora';
 import { parseDiff } from '../utils/diff-parser';
 import { formatDistanceToNow } from '../utils/date';
-import { INFO_COLOR, SUCCESS_COLOR, SECONDARY_COLOR, ERROR_COLOR } from '../utils/colors';
+import { INFO_COLOR, SUCCESS_COLOR, SECONDARY_COLOR, ERROR_COLOR } from '../config/colors';
 import {
   reviewCommentsInteractively,
   askPostCommentsDecision,

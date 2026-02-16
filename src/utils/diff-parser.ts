@@ -145,6 +145,90 @@ export function getCodeContext(
   return [];
 }
 
+export interface CodeRegion {
+  lines: string[];
+  startLineNum: number;
+}
+
+/**
+ * Get code context for multiple regions (main comment range + referenced ranges).
+ * Returns sorted, non-overlapping regions with a ... gap between them.
+ */
+export function getMultiRegionCodeContext(
+  parsedFiles: Map<string, ParsedFile>,
+  filePath: string,
+  mainTarget: number,
+  mainContext: number,
+  refRanges: [number, number][]
+): CodeRegion[] {
+  // Build list of all ranges to show: ref ranges (1 line context) + main range
+  const allRanges: { target: number; context: number }[] = [];
+
+  for (const [start, end] of refRanges) {
+    const mid = Math.floor((start + end) / 2);
+    const halfRange = Math.ceil((end - start) / 2);
+    allRanges.push({ target: mid, context: halfRange + 1 });
+  }
+
+  // Main range last
+  allRanges.push({ target: mainTarget, context: mainContext });
+
+  // Get raw code context for each range
+  const rawRegions: { lines: string[]; startLineNum: number; endLineNum: number }[] = [];
+
+  for (const range of allRanges) {
+    const lines = getCodeContext(parsedFiles, filePath, range.target, range.context);
+    if (lines.length === 0) continue;
+
+    let startLineNum = range.target - range.context;
+    if (startLineNum < 1) startLineNum = 1;
+
+    // Calculate end line number by counting non-deleted lines
+    let endLineNum = startLineNum;
+    for (const line of lines) {
+      if (!line.startsWith('-')) {
+        endLineNum++;
+      }
+    }
+
+    rawRegions.push({ lines, startLineNum, endLineNum });
+  }
+
+  if (rawRegions.length === 0) return [];
+
+  // Sort by start line
+  rawRegions.sort((a, b) => a.startLineNum - b.startLineNum);
+
+  // Merge overlapping or adjacent regions
+  const merged: { lines: string[]; startLineNum: number; endLineNum: number }[] = [rawRegions[0]];
+
+  for (let i = 1; i < rawRegions.length; i++) {
+    const prev = merged[merged.length - 1];
+    const curr = rawRegions[i];
+
+    if (curr.startLineNum <= prev.endLineNum + 1) {
+      // Overlapping or adjacent — re-fetch as one combined region
+      const combinedStart = prev.startLineNum;
+      const combinedEnd = Math.max(prev.endLineNum, curr.endLineNum);
+      const combinedMid = Math.floor((combinedStart + combinedEnd) / 2);
+      const combinedContext = Math.ceil((combinedEnd - combinedStart) / 2);
+      const combinedLines = getCodeContext(parsedFiles, filePath, combinedMid, combinedContext);
+
+      if (combinedLines.length > 0) {
+        merged[merged.length - 1] = {
+          lines: combinedLines,
+          startLineNum: combinedStart,
+          endLineNum: combinedEnd,
+        };
+      }
+    } else {
+      merged.push(curr);
+    }
+  }
+
+  return merged.map(({ lines, startLineNum }) => ({ lines, startLineNum }));
+}
+
 /**
  * Parse a unified diff string into FileChange[] with per-file stats.
  * Shared by GitHub and Bitbucket platforms.

@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { displayCodeContext } from './code-display';
-import { getCodeContext, isLineInDiff } from './diff-parser';
+import { displayCodeContext, displayMultiRegionCodeContext } from './code-display';
+import { getCodeContext, getMultiRegionCodeContext, isLineInDiff } from './diff-parser';
 import { askYesNo, askConfirmation } from './prompts';
 import { exportToReviewFile } from './review-export';
 import {
@@ -22,6 +22,7 @@ export interface ReviewComment {
   comment: string;
   originalCode?: string;
   suggestedCode?: string;
+  refLines?: [number, number][]; // Referenced line ranges from distant code (e.g. [[5, 8], [45, 47]])
 }
 
 export interface ReviewOptions {
@@ -95,13 +96,23 @@ export async function reviewCommentsInteractively(
         contextLines = 3;
       }
 
-      const codeContext = getCodeContext(parsedDiff, comment.file, targetLine, contextLines);
-      if (codeContext.length > 0) {
-        // Calculate starting line number (approximate)
-        let startLineNum = targetLine - contextLines;
-        if (startLineNum < 1) startLineNum = 1;
+      // Use multi-region display when refLines are present
+      if (comment.refLines && comment.refLines.length > 0) {
+        const regions = getMultiRegionCodeContext(parsedDiff, comment.file, targetLine, contextLines, comment.refLines);
+        if (regions.length > 1) {
+          displayMultiRegionCodeContext(regions);
+        } else if (regions.length === 1) {
+          displayCodeContext(regions[0].lines, regions[0].startLineNum);
+        }
+      } else {
+        const codeContext = getCodeContext(parsedDiff, comment.file, targetLine, contextLines);
+        if (codeContext.length > 0) {
+          // Calculate starting line number (approximate)
+          let startLineNum = targetLine - contextLines;
+          if (startLineNum < 1) startLineNum = 1;
 
-        displayCodeContext(codeContext, startLineNum);
+          displayCodeContext(codeContext, startLineNum);
+        }
       }
     } else if (comment.originalCode && comment.suggestedCode) {
       // Fallback to extracted code if available

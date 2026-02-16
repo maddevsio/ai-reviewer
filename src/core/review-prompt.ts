@@ -42,14 +42,26 @@ For multi-line issues (use this when the issue spans multiple lines):
 FILE: <file path>
 START_LINE: <start line number>
 END_LINE: <end line number>
+REF_LINES: <referenced line ranges outside your START_LINE-END_LINE range, or empty>
 COMMENT: <your review comment>
 ---
 
 For single-line issues (use this when the issue is on one specific line):
 FILE: <file path>
 LINE: <line number>
+REF_LINES: <referenced line ranges outside your LINE, or empty>
 COMMENT: <your review comment>
 ---
+
+REF_LINES rules:
+- ALWAYS include the REF_LINES field (leave empty if your comment is self-contained)
+- Use when your comment references code OUTSIDE your LINE/START_LINE-END_LINE range
+  (e.g. a variable declaration 100 lines above, a related condition elsewhere in the file)
+- Format: comma-separated start-end ranges. Examples:
+  - REF_LINES: 5-8 (single range, lines 5 through 8)
+  - REF_LINES: 5-8, 45-47 (two separate ranges)
+  - REF_LINES: 12 (single line, same as 12-12)
+  - REF_LINES: (empty, no distant references)
 
 Use multi-line format (START_LINE to END_LINE) ONLY when:
 - ALL lines between START_LINE and END_LINE have '+' prefix (no gaps with space or '-')
@@ -160,6 +172,36 @@ export function buildReviewPrompt(prDetails: PullRequestDetails, strictness: Rev
   ].join('\n\n');
 }
 
+/**
+ * Parse REF_LINES value into array of [start, end] tuples.
+ * Supports formats: "5-8", "5-8, 45-47", "12", "" (empty)
+ */
+function parseRefLines(value: string): [number, number][] {
+  const trimmed = value.trim();
+  if (!trimmed) return [];
+
+  const ranges: [number, number][] = [];
+  const parts = trimmed.split(',').map((p) => p.trim()).filter(Boolean);
+
+  for (const part of parts) {
+    if (part.includes('-')) {
+      const [startStr, endStr] = part.split('-').map((s) => s.trim());
+      const start = parseInt(startStr, 10);
+      const end = parseInt(endStr, 10);
+      if (!isNaN(start) && !isNaN(end)) {
+        ranges.push([start, end]);
+      }
+    } else {
+      const num = parseInt(part, 10);
+      if (!isNaN(num)) {
+        ranges.push([num, num]);
+      }
+    }
+  }
+
+  return ranges;
+}
+
 export function parseAIResponse(response: string): ReviewComment[] {
   // Check if AI says code looks good
   if (response.includes('LGTM') || response.includes('No issues found')) {
@@ -174,6 +216,7 @@ export function parseAIResponse(response: string): ReviewComment[] {
     let file = '';
     let line: number | undefined = undefined;
     let startLine: number | undefined = undefined;
+    let refLines: [number, number][] = [];
     let comment = '';
 
     for (const l of lines) {
@@ -194,6 +237,8 @@ export function parseAIResponse(response: string): ReviewComment[] {
         if (!isNaN(lineNum)) {
           line = lineNum;
         }
+      } else if (l.startsWith('REF_LINES:')) {
+        refLines = parseRefLines(l.replace('REF_LINES:', ''));
       } else if (l.startsWith('COMMENT:')) {
         comment = l.replace('COMMENT:', '').trim();
       } else if (comment) {
@@ -203,15 +248,16 @@ export function parseAIResponse(response: string): ReviewComment[] {
     }
 
     if (file && line && comment) {
-      const reviewComment = {
+      const reviewComment: ReviewComment = {
         file,
         line,
         startLine,
-        comment: comment.trim()
+        comment: comment.trim(),
+        ...(refLines.length > 0 ? { refLines } : {}),
       };
 
       // Log what the AI returned for debugging
-      logger.log('prompt', `AI comment parsed: file=${file}, startLine=${startLine || 'undefined'}, endLine=${line}, hasRange=${!!startLine && startLine !== line}`);
+      logger.log('prompt', `AI comment parsed: file=${file}, startLine=${startLine || 'undefined'}, endLine=${line}, hasRange=${!!startLine && startLine !== line}${refLines.length > 0 ? `, refLines=${refLines.map(r => r[0] === r[1] ? r[0] : `${r[0]}-${r[1]}`).join(', ')}` : ''}`);
 
       comments.push(reviewComment);
     }

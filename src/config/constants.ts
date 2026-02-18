@@ -7,6 +7,7 @@ export const GEMINI_3_FLASH_MODEL = 'gemini-3-flash-preview';
 export const GROQ_LLAMA_70B_MODEL = 'llama-3.3-70b-versatile';
 export const GROQ_LLAMA_4_SCOUT_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
 export const GROQ_LLAMA_8B_MODEL = 'llama-3.1-8b-instant';
+export const GPT_51_MODEL = 'gpt-5.1';
 
 // --- API defaults ---
 export const BITBUCKET_API_BASE_URL = 'https://api.bitbucket.org/2.0';

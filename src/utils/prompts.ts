@@ -1,7 +1,7 @@
 import * as readline from 'readline';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { DISABLED_COLOR, WARNING_COLOR, SUCCESS_COLOR, SECONDARY_COLOR } from '../config/colors';
+import { DISABLED_COLOR, WARNING_COLOR, SUCCESS_COLOR } from '../config/colors';
 
 /**
  * Ask a yes/no question that requires explicit y or n keypress
@@ -107,9 +107,8 @@ export async function askProviderSelection(): Promise<string> {
           value: 'groq',
         },
         {
-          name: chalk.hex(SECONDARY_COLOR)('🚧 OpenAI (GPT) - Coming soon'),
+          name: `${chalk.hex(SUCCESS_COLOR)('✓')} OpenAI (GPT) - Available`,
           value: 'openai',
-          disabled: true,
         },
       ],
     },

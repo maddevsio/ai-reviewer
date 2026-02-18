@@ -91,15 +91,20 @@ export function isLineInDiff(
   return false;
 }
 
+export interface CodeContextResult {
+  lines: string[];
+  startLineNum: number;
+}
+
 export function getCodeContext(
   parsedFiles: Map<string, ParsedFile>,
   filePath: string,
   lineNumber: number,
   contextLines: number = 3
-): string[] {
+): CodeContextResult {
   const file = parsedFiles.get(filePath);
   if (!file) {
-    return [];
+    return { lines: [], startLineNum: 1 };
   }
 
   // Find the hunk containing this line
@@ -113,6 +118,7 @@ export function getCodeContext(
       // Track actual line position considering additions/deletions
       let lineIndex = 0;
       let withinRange = false;
+      let firstNewLineIndex = -1;
 
       for (let i = 0; i < hunk.lines.length; i++) {
         const diffLine = hunk.lines[i];
@@ -125,6 +131,10 @@ export function getCodeContext(
         // Include lines in context if we're in range (including removed lines)
         if (withinRange) {
           context.push(diffLine);
+          // Track the new-file line number of the first non-deleted line in context
+          if (firstNewLineIndex === -1 && !diffLine.startsWith('-')) {
+            firstNewLineIndex = lineIndex;
+          }
         }
 
         // Increment line counter for new file lines
@@ -138,11 +148,15 @@ export function getCodeContext(
         }
       }
 
-      return context;
+      const startLineNum = firstNewLineIndex === -1
+        ? hunk.newStart
+        : hunk.newStart + firstNewLineIndex;
+
+      return { lines: context, startLineNum };
     }
   }
 
-  return [];
+  return { lines: [], startLineNum: 1 };
 }
 
 export interface CodeRegion {
@@ -178,21 +192,20 @@ export function getMultiRegionCodeContext(
   const rawRegions: { lines: string[]; startLineNum: number; endLineNum: number; isContext: boolean }[] = [];
 
   for (const range of allRanges) {
-    const lines = getCodeContext(parsedFiles, filePath, range.target, range.context);
-    if (lines.length === 0) continue;
+    const result = getCodeContext(parsedFiles, filePath, range.target, range.context);
+    if (result.lines.length === 0) continue;
 
-    let startLineNum = range.target - range.context;
-    if (startLineNum < 1) startLineNum = 1;
+    const startLineNum = result.startLineNum;
 
     // Calculate end line number by counting non-deleted lines
     let endLineNum = startLineNum;
-    for (const line of lines) {
+    for (const line of result.lines) {
       if (!line.startsWith('-')) {
         endLineNum++;
       }
     }
 
-    rawRegions.push({ lines, startLineNum, endLineNum, isContext: range.isContext });
+    rawRegions.push({ lines: result.lines, startLineNum, endLineNum, isContext: range.isContext });
   }
 
   if (rawRegions.length === 0) return [];
@@ -214,12 +227,12 @@ export function getMultiRegionCodeContext(
       const combinedEnd = Math.max(prev.endLineNum, curr.endLineNum);
       const combinedMid = Math.floor((combinedStart + combinedEnd) / 2);
       const combinedContext = Math.ceil((combinedEnd - combinedStart) / 2);
-      const combinedLines = getCodeContext(parsedFiles, filePath, combinedMid, combinedContext);
+      const combinedResult = getCodeContext(parsedFiles, filePath, combinedMid, combinedContext);
 
-      if (combinedLines.length > 0) {
+      if (combinedResult.lines.length > 0) {
         merged[merged.length - 1] = {
-          lines: combinedLines,
-          startLineNum: combinedStart,
+          lines: combinedResult.lines,
+          startLineNum: combinedResult.startLineNum,
           endLineNum: combinedEnd,
           isContext: prev.isContext && curr.isContext,
         };

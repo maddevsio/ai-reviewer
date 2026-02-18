@@ -16,7 +16,7 @@ import {
 import { getConfig, getContextFilePath, type ReviewStrictness } from '../config/manager';
 import { askStrictnessLevel, getStrictnessDisplayName } from '../utils/strictness';
 import { logger } from '../utils/logger';
-import { buildReviewPrompt, parseAIResponse } from './review-prompt';
+import { buildReviewPrompt, buildReviewInstructions, buildReviewContent, parseAIResponse } from './review-prompt';
 import { CHARS_PER_TOKEN_ESTIMATE } from '../config/constants';
 import * as fs from 'fs';
 
@@ -102,6 +102,8 @@ export async function reviewPullRequest(
 
   // Prepare the prompt for AI review
   const reviewPrompt = buildReviewPrompt(prDetails, strictness, projectContext);
+  const systemPrompt = buildReviewInstructions();
+  const userPrompt = buildReviewContent(prDetails, strictness, projectContext);
   const promptTokens = Math.ceil(reviewPrompt.length / CHARS_PER_TOKEN_ESTIMATE);
   logger.logPrompt(promptTokens, strictness, prDetails.files.length);
 
@@ -109,7 +111,7 @@ export async function reviewPullRequest(
   spinner = ora('Analyzing code changes with AI...').start();
   let aiResponse;
   try {
-    aiResponse = await aiProvider.sendPrompt(reviewPrompt);
+    aiResponse = await aiProvider.sendPrompt(reviewPrompt, { systemPrompt, userPrompt });
   } catch (error) {
     spinner.fail('AI analysis failed');
     throw error;
@@ -117,6 +119,7 @@ export async function reviewPullRequest(
   spinner.succeed('Analysis complete');
 
   // Parse AI response into review comments
+  logger.log('api-detailed', 'Raw AI response:\n' + aiResponse);
   const comments = parseAIResponse(aiResponse);
 
   if (comments.length === 0) {

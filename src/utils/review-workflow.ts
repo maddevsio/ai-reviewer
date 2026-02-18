@@ -105,12 +105,8 @@ export async function reviewCommentsInteractively(
           displayCodeContext(regions[0].lines, regions[0].startLineNum);
         }
       } else {
-        const codeContext = getCodeContext(parsedDiff, comment.file, targetLine, contextLines);
+        const { lines: codeContext, startLineNum } = getCodeContext(parsedDiff, comment.file, targetLine, contextLines);
         if (codeContext.length > 0) {
-          // Calculate starting line number (approximate)
-          let startLineNum = targetLine - contextLines;
-          if (startLineNum < 1) startLineNum = 1;
-
           displayCodeContext(codeContext, startLineNum);
         }
       }

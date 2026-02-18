@@ -162,13 +162,30 @@ Your line numbers MUST point to the code your comment is actually about. VERIFY 
 If the code looks good and has no issues, respond with: "LGTM - No issues found."`;
 }
 
-export function buildReviewPrompt(prDetails: PullRequestDetails, strictness: ReviewStrictness, projectContext?: string): string {
+/**
+ * Build the instruction portion of the review prompt (format, rules, examples, verification).
+ * Used as a system message for providers that support it (e.g. OpenAI).
+ */
+export function buildReviewInstructions(): string {
   return [
-    buildPRContextSection(prDetails, strictness, projectContext),
     buildResponseFormatSection(),
     buildDiffRulesSection(),
     buildExamplesSection(),
     buildVerificationSection(),
+  ].join('\n\n');
+}
+
+/**
+ * Build the content portion of the review prompt (PR context, diff, strictness).
+ */
+export function buildReviewContent(prDetails: PullRequestDetails, strictness: ReviewStrictness, projectContext?: string): string {
+  return buildPRContextSection(prDetails, strictness, projectContext);
+}
+
+export function buildReviewPrompt(prDetails: PullRequestDetails, strictness: ReviewStrictness, projectContext?: string): string {
+  return [
+    buildReviewContent(prDetails, strictness, projectContext),
+    buildReviewInstructions(),
   ].join('\n\n');
 }
 

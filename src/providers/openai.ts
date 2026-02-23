@@ -15,31 +15,22 @@ export class OpenAIProvider extends BaseAIProvider {
 
   async sendPrompt(prompt: string, context?: Record<string, any>): Promise<string> {
     try {
-      // Use split system/user messages when available for better instruction following
-      const systemPrompt = context?.systemPrompt as string | undefined;
-      const userPrompt = context?.userPrompt as string | undefined;
+      const instructions = context?.systemPrompt as string | undefined;
+      const input = context?.userPrompt as string ?? prompt;
 
-      const messages: OpenAI.ChatCompletionMessageParam[] = systemPrompt && userPrompt
-        ? [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ]
-        : [
-            { role: 'user', content: prompt },
-          ];
+      logger.logApiRequest('OpenAI', this.model, { promptLength: input.length });
 
-      logger.logApiRequest('OpenAI', this.model, { promptLength: prompt.length });
-
-      const response = await this.client.chat.completions.create({
+      const response = await this.client.responses.create({
         model: this.model,
-        max_completion_tokens: MAX_REVIEW_TOKENS,
-        messages,
+        max_output_tokens: MAX_REVIEW_TOKENS,
+        instructions: instructions ?? undefined,
+        input,
       });
 
-      const text = response.choices[0]?.message?.content;
+      const text = response.output_text;
 
       logger.logApiResponse('OpenAI', 200, text?.length ?? 0);
-      logger.log('api', `Tokens: input=${response.usage?.prompt_tokens}, output=${response.usage?.completion_tokens}`);
+      logger.log('api', `Tokens: input=${response.usage?.input_tokens}, output=${response.usage?.output_tokens}`);
 
       if (!text) {
         throw new Error('No text content in response');
@@ -53,10 +44,10 @@ export class OpenAIProvider extends BaseAIProvider {
 
   async validateCredentials(): Promise<boolean> {
     try {
-      await this.client.chat.completions.create({
+      await this.client.responses.create({
         model: this.model,
-        max_completion_tokens: VALIDATION_MAX_TOKENS,
-        messages: [{ role: 'user', content: 'test' }],
+        max_output_tokens: VALIDATION_MAX_TOKENS,
+        input: 'test',
       });
       return true;
     } catch (error) {

@@ -23,6 +23,8 @@ export interface ReviewComment {
   originalCode?: string;
   suggestedCode?: string;
   refLines?: [number, number][]; // Referenced line ranges from distant code (e.g. [[5, 8], [45, 47]])
+  targetCode?: string; // Exact code text at LINE/START_LINE — AI self-verification field
+  targetCodeEnd?: string; // Exact code text at END_LINE — AI self-verification for multi-line range end
 }
 
 export interface ReviewOptions {

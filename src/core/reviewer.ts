@@ -16,7 +16,7 @@ import {
 import { getConfig, getContextFilePath, type ReviewStrictness } from '../config/manager';
 import { askStrictnessLevel, getStrictnessDisplayName } from '../utils/strictness';
 import { logger } from '../utils/logger';
-import { buildReviewPrompt, buildReviewInstructions, buildReviewContent, parseAIResponse } from './review-prompt';
+import { buildReviewPrompt, buildReviewInstructions, buildReviewContent, parseAIResponse, validateTargetCodes } from './review-prompt';
 import { CHARS_PER_TOKEN_ESTIMATE } from '../config/constants';
 import * as fs from 'fs';
 
@@ -120,7 +120,8 @@ export async function reviewPullRequest(
 
   // Parse AI response into review comments
   logger.log('api-detailed', 'Raw AI response:\n' + aiResponse);
-  const comments = parseAIResponse(aiResponse);
+  const rawComments = parseAIResponse(aiResponse);
+  const comments = validateTargetCodes(rawComments, parsedDiff);
 
   if (comments.length === 0) {
     console.log(chalk.hex(SUCCESS_COLOR)('\n✓ No issues found! Code looks good.\n'));

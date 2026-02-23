@@ -91,6 +91,35 @@ export function isLineInDiff(
   return false;
 }
 
+/**
+ * Get the code content at a specific new-file line number (without the diff prefix).
+ * Returns null if the line is not found in any hunk.
+ */
+export function getCodeAtLine(
+  parsedFiles: Map<string, ParsedFile>,
+  filePath: string,
+  lineNumber: number
+): string | null {
+  const file = parsedFiles.get(filePath);
+  if (!file) return null;
+
+  for (const hunk of file.hunks) {
+    const hunkEnd = hunk.newStart + hunk.newLines;
+    if (lineNumber >= hunk.newStart && lineNumber < hunkEnd) {
+      let currentLine = hunk.newStart;
+      for (const diffLine of hunk.lines) {
+        if (diffLine.startsWith('-')) continue; // deleted lines don't count in new file
+        if (currentLine === lineNumber) {
+          return diffLine.substring(1); // strip the '+' or ' ' prefix
+        }
+        currentLine++;
+      }
+    }
+  }
+
+  return null;
+}
+
 export interface CodeContextResult {
   lines: string[];
   startLineNum: number;
@@ -210,19 +239,29 @@ export function getMultiRegionCodeContext(
 
   if (rawRegions.length === 0) return [];
 
+  // Drop ref regions that are entirely contained within the main region
+  const mainRegion = rawRegions.find((r) => !r.isContext);
+  if (mainRegion) {
+    for (let i = rawRegions.length - 1; i >= 0; i--) {
+      const r = rawRegions[i];
+      if (r.isContext && r.startLineNum >= mainRegion.startLineNum && r.endLineNum <= mainRegion.endLineNum) {
+        rawRegions.splice(i, 1);
+      }
+    }
+  }
+
   // Sort by start line
   rawRegions.sort((a, b) => a.startLineNum - b.startLineNum);
 
-  // Merge overlapping or adjacent regions
+  // Merge overlapping or adjacent regions of the same type
   const merged: { lines: string[]; startLineNum: number; endLineNum: number; isContext: boolean }[] = [rawRegions[0]];
 
   for (let i = 1; i < rawRegions.length; i++) {
     const prev = merged[merged.length - 1];
     const curr = rawRegions[i];
 
-    if (curr.startLineNum <= prev.endLineNum + 1) {
-      // Overlapping or adjacent — re-fetch as one combined region
-      // If either region is the main target, the merged result is main (not ref)
+    if (curr.startLineNum <= prev.endLineNum + 1 && curr.isContext === prev.isContext) {
+      // Overlapping or adjacent regions of the same type — merge into one
       const combinedStart = prev.startLineNum;
       const combinedEnd = Math.max(prev.endLineNum, curr.endLineNum);
       const combinedMid = Math.floor((combinedStart + combinedEnd) / 2);
@@ -234,7 +273,7 @@ export function getMultiRegionCodeContext(
           lines: combinedResult.lines,
           startLineNum: combinedResult.startLineNum,
           endLineNum: combinedEnd,
-          isContext: prev.isContext && curr.isContext,
+          isContext: prev.isContext,
         };
       }
     } else {

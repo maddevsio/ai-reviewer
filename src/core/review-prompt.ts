@@ -2,7 +2,7 @@ import { type ReviewStrictness } from '../config/manager';
 import { getStrictnessDisplayName, getStrictnessInstructions } from '../utils/strictness';
 import { ReviewComment } from '../utils/review-workflow';
 import { PullRequestDetails } from '../platforms/base';
-import { ParsedFile, getCodeAtLine } from '../utils/diff-parser';
+import { ParsedFile, getCodeAtLine, annotateDiffWithLineNumbers } from '../utils/diff-parser';
 import { logger } from '../utils/logger';
 
 function buildPRContextSection(prDetails: PullRequestDetails, strictness: ReviewStrictness, projectContext?: string): string {
@@ -22,12 +22,14 @@ Apply these ONLY when evaluating changed lines ('+' prefix in the diff). Do NOT 
 ${projectContext}`;
   }
 
+  const annotatedDiff = annotateDiffWithLineNumbers(prDetails.diff);
+
   section += `\n\nChanged Files (${prDetails.files.length}):
 ${prDetails.files.map((f) => `- ${f.path} (+${f.additions}/-${f.deletions})`).join('\n')}
 
 Full Diff:
-\`\`\`diff
-${prDetails.diff}
+\`\`\`
+${annotatedDiff}
 \`\`\`
 
 REVIEW STRICTNESS: ${getStrictnessDisplayName(strictness)}
@@ -95,10 +97,11 @@ In the diff above:
   * This includes BLANK/EMPTY lines with space prefix - they are still unchanged!
   * This includes code lines with space prefix - they are still unchanged!
 
-The line numbers you see in the diff:
-- For '+' lines: line number in the NEW file (after PR changes) - ONLY THESE ARE VALID
-- For ' ' lines: also in the NEW file, but UNCHANGED - NEVER use these numbers
-- For '-' lines: line number in the OLD file (before PR changes) - NEVER use these numbers
+Each line in the diff is prefixed with its new-file line number followed by │.
+- '+' and ' ' (context) lines have a line number — read it directly from the left margin
+- '-' (deleted) lines have NO line number (blank padding) — they are removed code
+- Use ONLY the line numbers shown next to '+' lines for your comments
+- NEVER use the line number of a ' ' (context) line — it is unchanged code
 
 WARNING: Even if a blank line (space prefix) appears between changed code you're discussing,
 you CANNOT use that blank line's number. Use the actual '+' line number instead.
@@ -153,14 +156,12 @@ Correct: LINE: 63 ✓ (points to the actual function definition your comment is 
 function buildVerificationSection(): string {
   return `MANDATORY VERIFICATION - DO THIS FOR EVERY SINGLE COMMENT:
 Step 1: Identify the issue you want to comment on
-Step 2: Find the EXACT line(s) in the diff that contain the problematic code
-Step 3: Look at the prefix of each line - it MUST be '+'
-Step 4: Write down the line number(s)
-Step 5: DOUBLE-CHECK: Go back to the diff and verify that line has '+' prefix
-Step 6: If the line has ' ' or '-' prefix, FIND THE NEAREST '+' LINE instead
-Step 7: BLANK LINE CHECK: Is the line at your chosen number empty or whitespace-only? If yes, move to the next line that has actual code.
-Step 8: CONTENT CROSS-CHECK — THIS IS MANDATORY, DO NOT SKIP:
-  Before writing each comment, go back to the diff and copy the actual code text at your chosen line number.
+Step 2: Find the line(s) in the diff that contain the problematic code
+Step 3: Read the line number from the left margin (the number before │)
+Step 4: Verify the line has '+' prefix — if it has ' ' or '-', find the nearest '+' line instead
+Step 5: BLANK LINE CHECK: Is the line at your chosen number empty or whitespace-only? If yes, move to the next line that has actual code.
+Step 6: CONTENT CROSS-CHECK — THIS IS MANDATORY, DO NOT SKIP:
+  Read the actual code text next to your chosen line number in the diff.
   Ask yourself: "Does this exact code text relate to my comment?"
   - If your comment is about \`fetchMarketData\`, the line MUST contain \`fetchMarketData\`. If it contains \`},\` or is blank — your line number is WRONG.
   - If your comment is about a function body, LINE/START_LINE MUST point to the function signature line (e.g. \`async fetchData() {\`), NOT to the blank line or closing brace above it.
@@ -321,6 +322,7 @@ const TARGET_CODE_SEARCH_RADIUS = 5;
 function codeMatches(actual: string, expected: string): boolean {
   const a = actual.trim();
   const e = expected.trim();
+  if (!a || !e) return false;
   return a === e || a.includes(e) || e.includes(a);
 }
 

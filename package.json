@@ -10,7 +10,10 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node bin/ai-review.js",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "code-review",
@@ -44,6 +47,8 @@
   "devDependencies": {
     "@types/inquirer": "^9.0.7",
     "@types/node": "^20.11.5",
-    "typescript": "^5.3.3"
+    "@vitest/coverage-v8": "^4.0.18",
+    "typescript": "^5.3.3",
+    "vitest": "^3.2.4"
   }
 }

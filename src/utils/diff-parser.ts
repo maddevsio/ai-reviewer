@@ -28,6 +28,7 @@ export function parseDiff(diff: string): Map<string, ParsedFile> {
     if (line.startsWith('diff --git')) {
       const match = line.match(/diff --git a\/(.*?) b\/(.*?)$/);
       if (match) {
+        currentHunk = null;
         currentFile = {
           oldPath: match[1],
           newPath: match[2],
@@ -125,7 +126,7 @@ export interface CodeContextResult {
   startLineNum: number;
 }
 
-export function getCodeContext(
+export function getContextWindow(
   parsedFiles: Map<string, ParsedFile>,
   filePath: string,
   lineNumber: number,
@@ -188,6 +189,50 @@ export function getCodeContext(
   return { lines: [], startLineNum: 1 };
 }
 
+/**
+ * Extract exactly lines [startLine, endLine] from the parsed diff.
+ * Unlike getContextWindow, this does not add extra lines around the range.
+ */
+export function getExactLineRange(
+  parsedFiles: Map<string, ParsedFile>,
+  filePath: string,
+  startLine: number,
+  endLine: number
+): CodeContextResult {
+  const file = parsedFiles.get(filePath);
+  if (!file) {
+    return { lines: [], startLineNum: startLine };
+  }
+
+  const result: string[] = [];
+
+  for (const hunk of file.hunks) {
+    const hunkEnd = hunk.newStart + hunk.newLines;
+    if (endLine < hunk.newStart || startLine >= hunkEnd) continue;
+
+    let currentLine = hunk.newStart;
+    let withinRange = false;
+
+    for (const diffLine of hunk.lines) {
+      if (!diffLine.startsWith('-')) {
+        withinRange = currentLine >= startLine && currentLine <= endLine;
+      }
+
+      if (withinRange) {
+        result.push(diffLine);
+      }
+
+      if (diffLine.startsWith('+') || diffLine.startsWith(' ')) {
+        currentLine++;
+      }
+
+      if (currentLine > endLine) break;
+    }
+  }
+
+  return { lines: result, startLineNum: startLine };
+}
+
 export interface CodeRegion {
   lines: string[];
   startLineNum: number;
@@ -205,36 +250,25 @@ export function getMultiRegionCodeContext(
   mainContext: number,
   refRanges: [number, number][]
 ): CodeRegion[] {
-  // Build list of all ranges to show: ref ranges (1 line context) + main range
-  const allRanges: { target: number; context: number; isContext: boolean }[] = [];
-
-  for (const [start, end] of refRanges) {
-    const mid = Math.floor((start + end) / 2);
-    const halfRange = Math.ceil((end - start) / 2);
-    allRanges.push({ target: mid, context: halfRange + 1, isContext: true });
-  }
-
-  // Main range last
-  allRanges.push({ target: mainTarget, context: mainContext, isContext: false });
-
-  // Get raw code context for each range
   const rawRegions: { lines: string[]; startLineNum: number; endLineNum: number; isContext: boolean }[] = [];
 
-  for (const range of allRanges) {
-    const result = getCodeContext(parsedFiles, filePath, range.target, range.context);
+  // Ref ranges: extract exact lines
+  for (const [start, end] of refRanges) {
+    const result = getExactLineRange(parsedFiles, filePath, start, end);
     if (result.lines.length === 0) continue;
+    rawRegions.push({ lines: result.lines, startLineNum: start, endLineNum: end, isContext: true });
+  }
 
-    const startLineNum = result.startLineNum;
-
-    // Calculate end line number by counting non-deleted lines
-    let endLineNum = startLineNum;
-    for (const line of result.lines) {
+  // Main range: context window around target
+  const mainResult = getContextWindow(parsedFiles, filePath, mainTarget, mainContext);
+  if (mainResult.lines.length > 0) {
+    let endLineNum = mainResult.startLineNum;
+    for (const line of mainResult.lines) {
       if (!line.startsWith('-')) {
         endLineNum++;
       }
     }
-
-    rawRegions.push({ lines: result.lines, startLineNum, endLineNum, isContext: range.isContext });
+    rawRegions.push({ lines: mainResult.lines, startLineNum: mainResult.startLineNum, endLineNum, isContext: false });
   }
 
   if (rawRegions.length === 0) return [];
@@ -264,9 +298,7 @@ export function getMultiRegionCodeContext(
       // Overlapping or adjacent regions of the same type — merge into one
       const combinedStart = prev.startLineNum;
       const combinedEnd = Math.max(prev.endLineNum, curr.endLineNum);
-      const combinedMid = Math.floor((combinedStart + combinedEnd) / 2);
-      const combinedContext = Math.ceil((combinedEnd - combinedStart) / 2);
-      const combinedResult = getCodeContext(parsedFiles, filePath, combinedMid, combinedContext);
+      const combinedResult = getExactLineRange(parsedFiles, filePath, combinedStart, combinedEnd);
 
       if (combinedResult.lines.length > 0) {
         merged[merged.length - 1] = {
@@ -339,4 +371,85 @@ export function parseFileChanges(diff: string): FileChange[] {
   }
 
   return files;
+}
+
+/**
+ * Annotate a raw unified diff string with new-file line numbers.
+ *
+ * '+' and ' ' (context) lines receive their new-file line number.
+ * '-' (deleted) lines receive blank padding (no number).
+ * File headers, hunk headers, and metadata lines pass through unchanged.
+ */
+export function annotateDiffWithLineNumbers(diff: string): string {
+  if (!diff) return diff;
+
+  const lines = diff.split('\n');
+
+  // Pass 1: find max new-file line number for padding width
+  let maxLineNum = 0;
+  for (const line of lines) {
+    const m = line.match(/@@ -\d+,?\d* \+(\d+),?(\d*) @@/);
+    if (m) {
+      const newStart = parseInt(m[1], 10);
+      const newLines = m[2] ? parseInt(m[2], 10) : 1;
+      maxLineNum = Math.max(maxLineNum, newStart + newLines);
+    }
+  }
+
+  const padWidth = Math.max(4, String(maxLineNum).length);
+  const blankPad = ' '.repeat(padWidth);
+
+  // Pass 2: annotate each line
+  let currentLineNum = 0;
+  const result: string[] = [];
+
+  for (const line of lines) {
+    if (line.startsWith('diff --git')) {
+      result.push(line);
+      currentLineNum = 0;
+      continue;
+    }
+
+    const hunkMatch = line.match(/@@ -\d+,?\d* \+(\d+),?\d* @@/);
+    if (hunkMatch) {
+      currentLineNum = parseInt(hunkMatch[1], 10);
+      result.push(line);
+      continue;
+    }
+
+    if (
+      line.startsWith('---') ||
+      line.startsWith('+++') ||
+      line.startsWith('index ') ||
+      line.startsWith('new file mode') ||
+      line.startsWith('deleted file mode') ||
+      line.startsWith('old mode') ||
+      line.startsWith('new mode') ||
+      line.startsWith('rename from') ||
+      line.startsWith('rename to') ||
+      line.startsWith('similarity index') ||
+      line.startsWith('dissimilarity index') ||
+      line.startsWith('Binary files')
+    ) {
+      result.push(line);
+      continue;
+    }
+
+    if (currentLineNum > 0) {
+      if (line.startsWith('-')) {
+        result.push(`${blankPad} \u2502 ${line}`);
+      } else if (line.startsWith('+') || line.startsWith(' ')) {
+        result.push(`${String(currentLineNum).padStart(padWidth)} \u2502 ${line}`);
+        currentLineNum++;
+      } else if (line.startsWith('\\')) {
+        result.push(line);
+      } else {
+        result.push(line);
+      }
+    } else {
+      result.push(line);
+    }
+  }
+
+  return result.join('\n');
 }

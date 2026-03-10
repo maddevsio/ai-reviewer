@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { displayCodeContext, displayMultiRegionCodeContext } from './code-display';
-import { getCodeContext, getMultiRegionCodeContext, isLineInDiff } from './diff-parser';
+import { getContextWindow, getMultiRegionCodeContext, isLineInDiff } from './diff-parser';
 import { askYesNo, askConfirmation } from './prompts';
 import { exportToReviewFile } from './review-export';
 import {
@@ -43,7 +43,7 @@ interface CommentReviewResult {
  * When a comment targets a line not in the diff, we convert it to a general
  * comment (no line number) and add a prefix explaining which line it refers to.
  */
-function convertToGeneralComment(comment: ReviewComment): ReviewComment {
+export function convertToGeneralComment(comment: ReviewComment): ReviewComment {
   const lineRef = comment.startLine && comment.startLine !== comment.line
     ? `lines ${comment.startLine}-${comment.line}`
     : `line ${comment.line}`;
@@ -107,7 +107,7 @@ export async function reviewCommentsInteractively(
           displayCodeContext(regions[0].lines, regions[0].startLineNum);
         }
       } else {
-        const { lines: codeContext, startLineNum } = getCodeContext(parsedDiff, comment.file, targetLine, contextLines);
+        const { lines: codeContext, startLineNum } = getContextWindow(parsedDiff, comment.file, targetLine, contextLines);
         if (codeContext.length > 0) {
           displayCodeContext(codeContext, startLineNum);
         }
@@ -294,7 +294,7 @@ export async function askPRApprovalDecision(
         { name: 'Approve PR', value: 'approve' },
         ...(supportsRequestChanges ? [{ name: 'Request changes', value: 'request_changes' }] : []),
         { name: 'Comment only (no approval status)', value: 'comment' },
-        { name: 'Skip (do nothing)', value: 'skip' },
+        { name: 'Cancel (discard pending comments)', value: 'skip' },
       ]
     : [
         { name: 'Approve PR', value: 'approve' },

@@ -4,6 +4,7 @@ import { configCommand } from './commands/config';
 import { prCommand } from './commands/pr';
 import { demoCommand } from './commands/demo';
 import { scanDocsCommand } from './commands/scan-docs';
+import { replCommand } from './commands/repl';
 
 export const program = new Command();
 
@@ -28,6 +29,7 @@ Examples:
   $ ai-review config set api-key           # Set API key (interactive)
   $ ai-review config set platform          # Set git platform (interactive)
   $ ai-review scan-docs                    # Scan project docs for review context
+  $ ai-review repl                         # Start interactive REPL session
 
 Commands:
   demo [id]        Try the tool with mock data (no setup required)
@@ -73,3 +75,4 @@ program.addCommand(initCommand);
 program.addCommand(configCommand);
 program.addCommand(prCommand);
 program.addCommand(scanDocsCommand);
+program.addCommand(replCommand);

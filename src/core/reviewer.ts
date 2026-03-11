@@ -3,6 +3,8 @@ import inquirer from 'inquirer';
 import ora from 'ora';
 import { createGitPlatform } from '../platforms/factory';
 import { createAIProvider } from '../providers/factory';
+import { GitPlatform } from '../platforms/base';
+import { AIProvider } from '../providers/base';
 import { formatDistanceToNow } from '../utils/date';
 import { parseDiff } from '../utils/diff-parser';
 import { INFO_COLOR, SUCCESS_COLOR, SECONDARY_COLOR } from '../config/colors';
@@ -20,14 +22,20 @@ import { buildReviewPrompt, buildReviewInstructions, buildReviewContent, parseAI
 import { CHARS_PER_TOKEN_ESTIMATE } from '../config/constants';
 import * as fs from 'fs';
 
+export interface ReplSession {
+  platform: GitPlatform;
+  aiProvider: AIProvider;
+}
+
 export async function reviewPullRequest(
   prId: string | undefined,
-  options: ReviewOptions
+  options: ReviewOptions,
+  session?: ReplSession
 ): Promise<void> {
   console.log(chalk.hex(INFO_COLOR)('\n🔍 AI Code Review\n'));
 
-  const platform = await createGitPlatform();
-  const aiProvider = createAIProvider();
+  const platform = session?.platform ?? await createGitPlatform();
+  const aiProvider = session?.aiProvider ?? createAIProvider();
 
   // If no PR ID provided, show selection menu
   if (!prId) {

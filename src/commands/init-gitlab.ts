@@ -50,12 +50,14 @@ export async function setupGitLabConfig(configScope: 'global' | 'local'): Promis
   setConfig('gitlab-project-id', gitlabProjectId, configScope);
   console.log(chalk.hex(SUCCESS_COLOR)(`✓ Project ID set to: ${gitlabProjectId}\n`));
 
+  const detectedUrl = parsedGitLab?.host || 'https://gitlab.com';
+
   const { gitlabUrl } = await inquirer.prompt([
     {
       type: 'input',
       name: 'gitlabUrl',
-      message: 'Enter your GitLab instance URL (leave empty for https://gitlab.com):',
-      default: 'https://gitlab.com',
+      message: 'Enter your GitLab instance URL:',
+      default: detectedUrl,
     },
   ]);
 
@@ -68,21 +70,20 @@ export async function setupGitLabConfig(configScope: 'global' | 'local'): Promis
   }
 
   // Show token info before prompting, so user knows where to create one
-  const tokenUrl = `${resolvedUrl}/${gitlabProjectId}/-/settings/access_tokens`;
-  console.log(chalk.hex(INFO_COLOR)('ℹ️  Project Access Token scopes required:'));
-  console.log(chalk.hex(INFO_COLOR)('   - api (full API access)'));
-  console.log(chalk.hex(INFO_COLOR)('   Or specific scopes: read_api, write_repository'));
-  console.log(chalk.hex(INFO_COLOR)(`   Create at: ${tokenUrl}\n`));
+  console.log(chalk.hex(INFO_COLOR)('ℹ️  Personal Access Token required. To create one:'));
+  console.log(chalk.hex(INFO_COLOR)(`   1. Go to: ${resolvedUrl}/-/user_settings/personal_access_tokens`));
+  console.log(chalk.hex(INFO_COLOR)('   2. Create a new token with the following scope:'));
+  console.log(chalk.hex(INFO_COLOR)('      - api\n'));
 
   const { gitlabToken } = await inquirer.prompt([
     {
       type: 'password',
       name: 'gitlabToken',
-      message: 'Enter your GitLab Project Access Token:',
+      message: 'Enter your GitLab Personal Access Token:',
       mask: '*',
       validate: (input: string) => {
         if (!input || input.trim().length === 0) {
-          return 'Project Access Token is required';
+          return 'Personal Access Token is required';
         }
         return true;
       },
@@ -90,5 +91,5 @@ export async function setupGitLabConfig(configScope: 'global' | 'local'): Promis
   ]);
 
   setConfig('gitlab-token', gitlabToken, configScope);
-  console.log(chalk.hex(SUCCESS_COLOR)('✓ GitLab Project Access Token saved\n'));
+  console.log(chalk.hex(SUCCESS_COLOR)('✓ GitLab Personal Access Token saved\n'));
 }

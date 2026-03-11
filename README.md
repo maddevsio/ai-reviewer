@@ -22,7 +22,7 @@ AI-powered code review CLI tool for pull requests. Get intelligent feedback on y
 - **Platform-Specific Requirements**:
     - **GitHub**: GitHub CLI (`gh`) installed and authenticated
     - **Bitbucket**: Personal API Token with repository and pull request scopes
-    - **GitLab**: API Access Token with `api` scope (or `read_api` + `write_repository`)
+    - **GitLab**: Personal Access Token with `api` scope
 
 ## Try It First (No Setup Required)
 
@@ -166,22 +166,28 @@ gh auth login
    - `write:pullrequest:bitbucket`
    - `write:repository:bitbucket`
 
+The setup wizard will prompt you for:
+- **Workspace**: Your Bitbucket workspace slug
+- **Repository slug**: Your repository name
+
+> **Note:** These values will be automatically extracted from your git remote URL if available.
+
 **For GitLab:**
+
+**Personal Access Token Setup:**
+1. Go to: https://gitlab.com/-/user_settings/personal_access_tokens
+2. Create a new token with the following scope:
+   - `api`
+
+> **Note:** If your organization uses a self-hosted GitLab instance, replace `gitlab.com` with your instance domain (e.g., `https://git.yourcompany.com/-/user_settings/personal_access_tokens`). The setup wizard will ask for your instance URL.
 
 The setup wizard will prompt you for:
 - **Namespace**: Your GitLab username or group name (e.g., "myusername")
 - **Project name**: Your repository name (e.g., "my-repo")
 - These will be combined into a project ID like "myusername/my-repo"
+- **Instance URL**: Your GitLab instance URL (e.g., `https://gitlab.com`)
 
-Create a Personal Access Token with required scopes:
-- **api** (full API access) OR
-- **read_api** + **write_repository** (specific scopes)
-
-**Personal Access Token Setup:**
-- Create at: https://gitlab.com/-/user_settings/personal_access_tokens
-- For self-hosted GitLab: `https://your-gitlab-instance.com/-/user_settings/personal_access_tokens`
-- Required scopes: api (or read_api + write_repository)
-- Uses PRIVATE-TOKEN authentication
+> **Note:** These values will be automatically extracted from your git remote URL if available.
 
 **Self-Hosted GitLab Support:**
 During setup, you can specify a custom GitLab URL for self-hosted instances (defaults to https://gitlab.com).

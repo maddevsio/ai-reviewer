@@ -93,6 +93,7 @@ export function parseBitbucketUrl(remoteUrl: string): BitbucketRepoInfo | null {
 export interface GitLabRepoInfo {
   namespace: string;
   project: string;
+  host: string;
 }
 
 /**
@@ -111,20 +112,22 @@ export function parseGitLabUrl(remoteUrl: string): GitLabRepoInfo | null {
   }
 
   // Try HTTPS format: https://gitlab.com/namespace/project.git
-  const httpsMatch = remoteUrl.match(/gitlab[^\/]*\/([^\/]+)\/([^\/]+?)(?:\.git)?$/);
+  const httpsMatch = remoteUrl.match(/^(https?:\/\/[^\/]+)\/([^\/]+)\/([^\/]+?)(?:\.git)?$/);
   if (httpsMatch) {
     return {
-      namespace: httpsMatch[1],
-      project: httpsMatch[2],
+      host: httpsMatch[1],
+      namespace: httpsMatch[2],
+      project: httpsMatch[3],
     };
   }
 
   // Try SSH format: git@gitlab.com:namespace/project.git
-  const sshMatch = remoteUrl.match(/gitlab[^:]*:([^\/]+)\/([^\/]+?)(?:\.git)?$/);
+  const sshMatch = remoteUrl.match(/^git@([^:]+):([^\/]+)\/([^\/]+?)(?:\.git)?$/);
   if (sshMatch) {
     return {
-      namespace: sshMatch[1],
-      project: sshMatch[2],
+      host: `https://${sshMatch[1]}`,
+      namespace: sshMatch[2],
+      project: sshMatch[3],
     };
   }
 

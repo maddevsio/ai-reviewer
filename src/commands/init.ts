@@ -263,11 +263,9 @@ export const initCommand = new Command('init')
       console.log(chalk.hex(SECONDARY_COLOR)('   3. Navigate to a repo with PRs'));
       console.log(chalk.hex(SECONDARY_COLOR)('   4. Run: ai-review pr\n'));
     } else if (gitPlatform === 'gitlab') {
-      console.log(chalk.hex(SECONDARY_COLOR)('   1. Your Personal Access Token must have the following scopes:'));
-      console.log(chalk.hex(SECONDARY_COLOR)('      - api (full API access)'));
-      console.log(chalk.hex(SECONDARY_COLOR)('      - Or specific: read_api, write_repository'));
-      console.log(chalk.hex(SECONDARY_COLOR)('   2. Create token at: https://gitlab.com/-/user_settings/personal_access_tokens'));
-      console.log(chalk.hex(SECONDARY_COLOR)('   3. Navigate to a repo with merge requests'));
-      console.log(chalk.hex(SECONDARY_COLOR)('   4. Run: ai-review pr\n'));
+      console.log(chalk.hex(SECONDARY_COLOR)('   1. Your Personal Access Token must have the following scope:'));
+      console.log(chalk.hex(SECONDARY_COLOR)('      - api'));
+      console.log(chalk.hex(SECONDARY_COLOR)('   2. Navigate to a repo with merge requests'));
+      console.log(chalk.hex(SECONDARY_COLOR)('   3. Run: ai-review pr\n'));
     }
   });

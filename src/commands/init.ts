@@ -252,10 +252,14 @@ export const initCommand = new Command('init')
       console.log(chalk.hex(SECONDARY_COLOR)('   3. Navigate to a repo with PRs'));
       console.log(chalk.hex(SECONDARY_COLOR)('   4. Run: ai-review pr\n'));
     } else if (gitPlatform === 'bitbucket') {
-      console.log(chalk.hex(SECONDARY_COLOR)('   1. Your API Token must have the following permissions:'));
-      console.log(chalk.hex(SECONDARY_COLOR)('      - Repositories: Read, Write'));
-      console.log(chalk.hex(SECONDARY_COLOR)('      - Pull requests: Read, Write'));
-      console.log(chalk.hex(SECONDARY_COLOR)('   2. Create API Token at: https://bitbucket.org/account/settings/api-tokens/'));
+      console.log(chalk.hex(SECONDARY_COLOR)('   1. Your Personal API Token must have the following scopes:'));
+      console.log(chalk.hex(SECONDARY_COLOR)('      - read:user:bitbucket'));
+      console.log(chalk.hex(SECONDARY_COLOR)('      - read:pullrequest:bitbucket'));
+      console.log(chalk.hex(SECONDARY_COLOR)('      - read:repository:bitbucket'));
+      console.log(chalk.hex(SECONDARY_COLOR)('      - write:pullrequest:bitbucket'));
+      console.log(chalk.hex(SECONDARY_COLOR)('      - write:repository:bitbucket'));
+      console.log(chalk.hex(SECONDARY_COLOR)('   2. Create token at: https://id.atlassian.com/manage-profile/'));
+      console.log(chalk.hex(SECONDARY_COLOR)('      Navigate to: Security → API tokens → Create and manage API tokens → Create API token with scopes'));
       console.log(chalk.hex(SECONDARY_COLOR)('   3. Navigate to a repo with PRs'));
       console.log(chalk.hex(SECONDARY_COLOR)('   4. Run: ai-review pr\n'));
     } else if (gitPlatform === 'gitlab') {

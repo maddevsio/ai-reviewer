@@ -44,7 +44,7 @@ export const PROVIDER_CONFIG_KEYS: Partial<Record<AIProvider, Array<keyof Config
  * Used by configCleanup to remove stale keys when switching platforms.
  */
 export const PLATFORM_CONFIG_KEYS: Partial<Record<Platform, Array<keyof ConfigSchema>>> = {
-  bitbucket: ['bitbucket-workspace', 'bitbucket-repo-slug', 'bitbucket-api-token', 'bitbucket-reviewer-uuid'],
+  bitbucket: ['bitbucket-workspace', 'bitbucket-repo-slug', 'bitbucket-username', 'bitbucket-api-token'],
   gitlab: ['gitlab-token', 'gitlab-project-id', 'gitlab-url'],
 };
 

@@ -54,8 +54,8 @@ interface BitbucketCommentPayload {
 interface BitbucketConfig {
   workspace: string;
   repoSlug: string;
-  appPassword: string;
-  reviewerUuid: string;
+  username: string;
+  apiToken: string;
 }
 
 export class BitbucketPlatform extends BaseGitPlatform {
@@ -68,33 +68,56 @@ export class BitbucketPlatform extends BaseGitPlatform {
     // Load Bitbucket-specific config
     const workspace = getConfig('bitbucket-workspace');
     const repoSlug = getConfig('bitbucket-repo-slug');
-    const apiToken = getConfig('bitbucket-api-token'); // Still using old field name for now
-    const reviewerUuid = getConfig('bitbucket-reviewer-uuid');
+    const username = getConfig('bitbucket-username');
+    const apiToken = getConfig('bitbucket-api-token');
 
-    if (!workspace || !repoSlug || !apiToken || !reviewerUuid) {
+    if (!workspace || !repoSlug || !username || !apiToken) {
       throw new Error(
         'Bitbucket configuration incomplete. Please run: ai-review init\n' +
-        'Required: bitbucket-workspace, bitbucket-repo-slug, bitbucket-api-token, bitbucket-reviewer-uuid\n' +
-        'Note: Only API Tokens (ATATT...) are supported. App Passwords are deprecated.'
+        'Required: bitbucket-workspace, bitbucket-repo-slug, bitbucket-username, bitbucket-api-token'
       );
     }
 
     this.config = {
       workspace,
       repoSlug,
-      appPassword: apiToken,
-      reviewerUuid,
+      username,
+      apiToken,
     };
 
-    // Use Bearer token authentication (API Tokens only)
+    // Use Basic auth with Personal API Token (username:token)
+    const basicAuth = Buffer.from(`${username}:${apiToken}`).toString('base64');
     this.api = axios.create({
       baseURL: BITBUCKET_API_BASE_URL,
       headers: {
-        'Authorization': `Bearer ${apiToken}`,
+        'Authorization': `Basic ${basicAuth}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
     });
+
+    this.api.interceptors.request.use((config) => {
+      logger.logPlatformApiRequest(
+        config.method?.toUpperCase() ?? 'REQUEST',
+        `${config.baseURL ?? ''}${config.url ?? ''}`,
+        { ...config.headers, Authorization: 'Basic [redacted]' },
+        config.data,
+      );
+      return config;
+    });
+
+    this.api.interceptors.response.use(
+      (response) => {
+        logger.logApiResponse('Bitbucket', response.status, JSON.stringify(response.data).length, response.data);
+        return response;
+      },
+      (error) => {
+        if (error.response) {
+          logger.logApiResponse('Bitbucket', error.response.status, JSON.stringify(error.response.data).length, error.response.data);
+        }
+        return Promise.reject(error);
+      },
+    );
   }
 
   getName(): string {
@@ -103,7 +126,7 @@ export class BitbucketPlatform extends BaseGitPlatform {
 
   async isAuthenticated(): Promise<boolean> {
     try {
-      await this.api.get(`/workspaces/${this.config.workspace}`);
+      await this.api.get('/user');
       return true;
     } catch (error: any) {
       return this.handleAuthError(error);
@@ -177,12 +200,9 @@ export class BitbucketPlatform extends BaseGitPlatform {
           : ' (no startLine)';
       logger.logPlatform('postComment', `Posting ${commentType} comment to PR #${prId} at ${location}${rangeInfo}`);
 
-      // Append reviewer mention to comment for attribution and notifications
-      const commentWithMention = `${comment.body}\n\n---\n_👤 Reviewed by @{${this.config.reviewerUuid}}_`;
-
       const payload: BitbucketCommentPayload = {
         content: {
-          raw: commentWithMention,
+          raw: comment.body,
         },
       };
 

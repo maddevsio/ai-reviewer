@@ -35,7 +35,8 @@ export async function createGitPlatform(): Promise<GitPlatform> {
         console.error('Please check your configuration:');
         console.error('  - bitbucket-workspace');
         console.error('  - bitbucket-repo-slug');
-        console.error('  - bitbucket-api-token');
+        console.error('  - bitbucket-username');
+        console.error('  - bitbucket-api-token (Personal API Token)');
         console.error('\nRun: ai-review init');
         process.exit(1);
       }

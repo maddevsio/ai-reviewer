@@ -21,7 +21,7 @@ AI-powered code review CLI tool for pull requests. Get intelligent feedback on y
     - **Google (Gemini)**: Free API key (subject to rate limits)
 - **Platform-Specific Requirements**:
     - **GitHub**: GitHub CLI (`gh`) installed and authenticated
-    - **Bitbucket**: API Token with Repositories and Pull requests permissions
+    - **Bitbucket**: Personal API Token with repository and pull request scopes
     - **GitLab**: API Access Token with `api` scope (or `read_api` + `write_repository`)
 
 ## Try It First (No Setup Required)
@@ -101,7 +101,7 @@ This interactive wizard will guide you through:
 3. Choosing your git platform (GitHub / Bitbucket / GitLab)
    - **Note:** Bitbucket requires local config (workspace/repo needed) - use `ai-review init` in your repository
 4. Platform-specific setup:
-   - **Bitbucket**: workspace, repo slug, API token, reviewer UUID (for @mentions)
+   - **Bitbucket**: workspace, repo slug, account email, Personal API Token
      - Auto-detects workspace/repo from git remote (if available) - you can accept or enter custom values
    - **GitLab**: namespace, project name, Personal Access Token, instance URL (optional)
      - Auto-detects namespace/project from git remote (if available) - you can accept or enter custom values
@@ -156,18 +156,15 @@ gh auth login
 
 **Important:** Bitbucket requires local configuration (workspace/repo specific). Run `ai-review init` inside your git repository.
 
-**API Token Setup:**
-- Create at: ```https://bitbucket.org/${workspace_name}/${repo_name}/admin/access-tokens```
-- Select scopes: Repositories (Read, Write), Pull requests (Read, Write)
-
-**Reviewer UUID (Required):**
-The setup wizard will ask for your Bitbucket account UUID. This is used for @mentions in review comments, ensuring you receive notifications when team members reply to your comments.
-
-**How to find your UUID:**
-1. Visit: https://bitbucket.org/!api/2.0/user (while logged in)
-2. Look for the `"account_id"` field in the JSON response
-3. Copy the value (e.g., `1a2b3c4d5e6f7890abcdef12`)
-4. Paste it into the setup wizard
+**Personal API Token Setup:**
+1. Go to: https://id.atlassian.com/manage-profile/
+2. Navigate to: Security → API tokens → Create and manage API tokens → Create API token with scopes
+3. Required scopes:
+   - `read:user:bitbucket`
+   - `read:pullrequest:bitbucket`
+   - `read:repository:bitbucket`
+   - `write:pullrequest:bitbucket`
+   - `write:repository:bitbucket`
 
 **For GitLab:**
 
@@ -525,9 +522,10 @@ GitHub doesn't allow you to approve or request changes on your own PRs. You can 
 ai-review config list
 ```
 
-2. Create or regenerate your API Token:
-   - Create at: https://bitbucket.org/account/settings/api-tokens/
-   - Required scopes: Repositories (Read, Write), Pull requests (Read, Write)
+2. Create or regenerate your Personal API Token:
+   - Go to: https://id.atlassian.com/manage-profile/
+   - Navigate to: Security → API tokens → Create and manage API tokens → Create API token with scopes
+   - Required scopes: `read:user:bitbucket`, `read:pullrequest:bitbucket`, `read:repository:bitbucket`, `write:pullrequest:bitbucket`, `write:repository:bitbucket`
 
 3. Update your API token:
 ```bash
@@ -539,8 +537,8 @@ ai-review config set bitbucket-api-token
 ```bash
 ai-review config set bitbucket-workspace
 ai-review config set bitbucket-repo-slug
-ai-review config set bitbucket-reviewer-uuid
-# Find your UUID at: https://bitbucket.org/!api/2.0/user (look for "account_id")
+ai-review config set bitbucket-username
+ai-review config set bitbucket-api-token
 ```
 
 ## FAQ
@@ -560,11 +558,10 @@ OpenAI GPT-4 support is planned for future releases.
 
 **GitHub** - Supported via GitHub CLI (`gh`)
 
-**Bitbucket** - Supported via REST API with API Tokens (Bearer authentication)
-- Create API Token at: https://bitbucket.org/account/settings/api-tokens/
-- Required scopes: Repositories (Read, Write), Pull requests (Read, Write)
-
-**Note:** App Passwords are deprecated and not supported.
+**Bitbucket** - Supported via REST API with Personal API Tokens (Basic authentication)
+- Create Personal API Token at: https://id.atlassian.com/manage-profile/
+- Navigate to: Security → API tokens → Create and manage API tokens → Create API token with scopes
+- Required scopes: `read:user:bitbucket`, `read:pullrequest:bitbucket`, `read:repository:bitbucket`, `write:pullrequest:bitbucket`, `write:repository:bitbucket`
 
 **GitLab** - Supported via REST API with Personal Access Tokens (PRIVATE-TOKEN authentication)
 - Create token at: https://gitlab.com/-/user_settings/personal_access_tokens

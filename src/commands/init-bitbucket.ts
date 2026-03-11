@@ -51,22 +51,44 @@ export async function setupBitbucketConfig(configScope: 'global' | 'local'): Pro
   setConfig('bitbucket-repo-slug', repoSlug, configScope);
   console.log(chalk.hex(SUCCESS_COLOR)(`✓ Repository slug set to: ${repoSlug}\n`));
 
+  // Prompt for account email (used as username in Basic auth)
+  const { bbUsername } = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'bbUsername',
+      message: 'Enter your Bitbucket account email:',
+      validate: (input: string) => {
+        if (!input || input.trim().length === 0) {
+          return 'Account email is required';
+        }
+        return true;
+      },
+    },
+  ]);
+
+  setConfig('bitbucket-username', bbUsername.trim(), configScope);
+  console.log(chalk.hex(SUCCESS_COLOR)(`✓ Username set to: ${bbUsername.trim()}\n`));
+
   // Show token info before prompting, so user knows where to create one
-  const tokenUrl = `https://bitbucket.org/${workspace}/${repoSlug}/admin/access-tokens`;
-  console.log(chalk.hex(INFO_COLOR)('ℹ️  Repository Access Token permissions required:'));
-  console.log(chalk.hex(INFO_COLOR)('   - Repositories: Read, Write'));
-  console.log(chalk.hex(INFO_COLOR)('   - Pull requests: Read, Write'));
-  console.log(chalk.hex(INFO_COLOR)(`   Create at: ${tokenUrl}\n`));
+  console.log(chalk.hex(INFO_COLOR)('ℹ️  Personal API Token required. To create one:'));
+  console.log(chalk.hex(INFO_COLOR)('   1. Go to: https://id.atlassian.com/manage-profile/'));
+  console.log(chalk.hex(INFO_COLOR)('   2. Navigate to: Security → API tokens → Create and manage API tokens → Create API token with scopes'));
+  console.log(chalk.hex(INFO_COLOR)('   3. Create a new token with the following scopes:'));
+  console.log(chalk.hex(INFO_COLOR)('      - read:user:bitbucket'));
+  console.log(chalk.hex(INFO_COLOR)('      - read:pullrequest:bitbucket'));
+  console.log(chalk.hex(INFO_COLOR)('      - read:repository:bitbucket'));
+  console.log(chalk.hex(INFO_COLOR)('      - write:pullrequest:bitbucket'));
+  console.log(chalk.hex(INFO_COLOR)('      - write:repository:bitbucket\n'));
 
   const { bbApiToken } = await inquirer.prompt([
     {
       type: 'password',
       name: 'bbApiToken',
-      message: 'Enter your Bitbucket Repository Access Token:',
+      message: 'Enter your Bitbucket Personal API Token:',
       mask: '*',
       validate: (input: string) => {
         if (!input || input.trim().length === 0) {
-          return 'Repository Access Token is required';
+          return 'Personal API Token is required';
         }
         return true;
       },
@@ -74,32 +96,5 @@ export async function setupBitbucketConfig(configScope: 'global' | 'local'): Pro
   ]);
 
   setConfig('bitbucket-api-token', bbApiToken, configScope);
-  console.log(chalk.hex(SUCCESS_COLOR)('✓ Bitbucket Repository Access Token saved\n'));
-
-  // Prompt for reviewer UUID for @mentions
-  console.log(chalk.hex(INFO_COLOR)('ℹ️  Reviewer UUID is used for @mentions in review comments'));
-  console.log(chalk.hex(INFO_COLOR)('   This allows team members to be notified of comment discussions'));
-  console.log(chalk.hex(INFO_COLOR)('   Find your UUID: Visit https://bitbucket.org/!api/2.0/user'));
-  console.log(chalk.hex(INFO_COLOR)('   Look for the "account_id" field in the JSON response\n'));
-
-  const { reviewerUuid } = await inquirer.prompt([
-    {
-      type: 'input',
-      name: 'reviewerUuid',
-      message: 'Enter your Bitbucket account UUID (e.g., 1a2b3c4d5e6f7890abcdef12):',
-      validate: (input: string) => {
-        if (!input || input.trim().length === 0) {
-          return 'UUID is required for review attribution';
-        }
-        // Basic validation: should be alphanumeric, typically 24 characters
-        if (!/^[a-f0-9]{24}$/i.test(input.trim())) {
-          return 'UUID should be a 24-character hexadecimal string';
-        }
-        return true;
-      },
-    },
-  ]);
-
-  setConfig('bitbucket-reviewer-uuid', reviewerUuid.trim(), configScope);
-  console.log(chalk.hex(SUCCESS_COLOR)('✓ Reviewer UUID saved\n'));
+  console.log(chalk.hex(SUCCESS_COLOR)('✓ Bitbucket Personal API Token saved\n'));
 }

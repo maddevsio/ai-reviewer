@@ -4,7 +4,7 @@ import inquirer from 'inquirer';
 import { platform } from 'os';
 import { setConfig, listConfig, getConfigInfo, AIProvider } from '../config/manager';
 import { SUCCESS_COLOR, INFO_COLOR, SECONDARY_COLOR, HIGHLIGHT_COLOR, WARNING_COLOR } from '../config/colors';
-import { findGitRepoRoot } from '../utils/git';
+import { findGitRepoRoot, getGitRemoteUrl, detectPlatformFromUrl } from '../utils/git';
 import { askStrictnessLevel } from '../utils/strictness';
 import { askGoogleModel, askGroqModel } from '../utils/models';
 import { PROVIDER_DISPLAY_NAMES, API_KEY_VALIDATION } from '../config/constants';
@@ -188,6 +188,16 @@ export const initCommand = new Command('init')
     setConfig('platform', gitPlatform, configScope);
     configCleanup('platform', configScope);
     console.log(chalk.hex(SUCCESS_COLOR)(`✓ Platform set to: ${gitPlatform}\n`));
+
+    // Warn if selected platform doesn't match the git remote URL
+    const remoteUrl = getGitRemoteUrl();
+    if (remoteUrl) {
+      const detectedPlatform = detectPlatformFromUrl(remoteUrl);
+      if (detectedPlatform && detectedPlatform !== gitPlatform) {
+        console.log(chalk.hex(WARNING_COLOR)(`⚠️  Warning: your git remote URL looks like a ${detectedPlatform} repository, but you selected ${gitPlatform}.`));
+        console.log(chalk.hex(WARNING_COLOR)(`   Remote: ${remoteUrl}\n`));
+      }
+    }
 
     // Step 5: Platform-specific configuration
     if (gitPlatform === 'bitbucket') {

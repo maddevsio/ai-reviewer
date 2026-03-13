@@ -8,6 +8,7 @@ import { askGoogleModel, askGroqModel } from '../utils/models';
 import { PROVIDER_DISPLAY_NAMES, API_KEY_VALIDATION } from '../config/constants';
 import { configCleanup, isSensitiveKey, maskApiKey } from '../utils/config';
 import { askProviderSelection } from '../utils/prompts';
+import { getGitRemoteUrl, detectPlatformFromUrl } from '../utils/git';
 import { setupBitbucketConfig } from './init-bitbucket';
 import { setupGitLabConfig } from './init-gitlab';
 
@@ -110,6 +111,16 @@ configCommand
       configCleanup('platform', existingScope);
       console.log(chalk.hex(SUCCESS_COLOR)(`✓ Set ${key} = ${selectedPlatform}\n`));
 
+      // Warn if selected platform doesn't match the git remote URL
+      const remoteUrl = getGitRemoteUrl();
+      if (remoteUrl) {
+        const detectedPlatform = detectPlatformFromUrl(remoteUrl);
+        if (detectedPlatform && detectedPlatform !== selectedPlatform) {
+          console.log(chalk.hex(WARNING_COLOR)(`⚠️  Warning: your git remote URL looks like a ${detectedPlatform} repository, but you selected ${selectedPlatform}.`));
+          console.log(chalk.hex(WARNING_COLOR)(`   Remote: ${remoteUrl}\n`));
+        }
+      }
+
       // Guide through platform-specific setup
       if (selectedPlatform === 'bitbucket') {
         await setupBitbucketConfig(existingScope);
@@ -207,6 +218,18 @@ configCommand
       displayValue = maskApiKey(value);
     }
     console.log(chalk.hex(SUCCESS_COLOR)(`✓ Set ${key} = ${displayValue}`));
+
+    // Warn if selected platform doesn't match the git remote URL
+    if (key === 'platform') {
+      const remoteUrl = getGitRemoteUrl();
+      if (remoteUrl) {
+        const detectedPlatform = detectPlatformFromUrl(remoteUrl);
+        if (detectedPlatform && detectedPlatform !== value) {
+          console.log(chalk.hex(WARNING_COLOR)(`⚠️  Warning: your git remote URL looks like a ${detectedPlatform} repository, but you selected ${value}.`));
+          console.log(chalk.hex(WARNING_COLOR)(`   Remote: ${remoteUrl}\n`));
+        }
+      }
+    }
 
     // Guide through platform-specific setup when value was provided directly
     if (key === 'platform' && value === 'bitbucket') {

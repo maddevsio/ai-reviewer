@@ -90,6 +90,19 @@ export function parseBitbucketUrl(remoteUrl: string): BitbucketRepoInfo | null {
   return null;
 }
 
+/**
+ * Detect which git platform a remote URL belongs to.
+ * @param remoteUrl Git remote URL
+ * @returns Detected platform name or null if unrecognised
+ */
+export function detectPlatformFromUrl(remoteUrl: string): 'github' | 'gitlab' | 'bitbucket' | null {
+  if (!remoteUrl) return null;
+  if (remoteUrl.includes('github.com')) return 'github';
+  if (remoteUrl.includes('bitbucket.org')) return 'bitbucket';
+  if (remoteUrl.includes('gitlab')) return 'gitlab';
+  return null;
+}
+
 export interface GitLabRepoInfo {
   namespace: string;
   project: string;

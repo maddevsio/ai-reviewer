@@ -7,20 +7,115 @@ import { GitPlatform } from '../platforms/base';
 import { AIProvider } from '../providers/base';
 import { formatDistanceToNow } from '../utils/date';
 import { parseDiff } from '../utils/diff-parser';
-import { INFO_COLOR, SUCCESS_COLOR, SECONDARY_COLOR } from '../config/colors';
+import { INFO_COLOR, SUCCESS_COLOR } from '../config/colors';
 import {
   reviewCommentsInteractively,
   askPostCommentsDecision,
   askPRApprovalDecision,
+  askSummaryApprovalDecision,
   handlePRApprovalWorkflow,
   ReviewOptions,
 } from '../utils/review-workflow';
 import { getConfig, getContextFilePath, type ReviewStrictness } from '../config/manager';
 import { askStrictnessLevel, getStrictnessDisplayName } from '../utils/strictness';
+import { askConfirmation } from '../utils/prompts';
 import { logger } from '../utils/logger';
-import { buildReviewPrompt, buildReviewInstructions, buildReviewContent, parseAIResponse, validateTargetCodes } from './review-prompt';
+import { buildReviewPrompt, buildReviewInstructions, buildReviewContent, buildSummaryPrompt, parseAIResponse, validateTargetCodes } from './review-prompt';
 import { CHARS_PER_TOKEN_ESTIMATE } from '../config/constants';
+import { SECONDARY_COLOR, WARNING_COLOR } from '../config/colors';
 import * as fs from 'fs';
+
+async function runSummaryReview(
+  platform: GitPlatform,
+  aiProvider: AIProvider,
+  prId: string,
+  options: ReviewOptions
+): Promise<void> {
+  // Fetch PR details
+  let spinner = ora(`Fetching PR #${prId}...`).start();
+  let prDetails;
+  try {
+    prDetails = await platform.getPullRequestDetails(prId);
+  } catch (error) {
+    spinner.fail(`Failed to fetch PR #${prId}`);
+    throw error;
+  }
+  spinner.succeed(`PR #${prId} fetched - ${prDetails.files.length} file(s) changed`);
+
+  // Load project documentation context if available
+  const contextFilePath = getContextFilePath();
+  let projectContext: string | undefined;
+  if (contextFilePath && fs.existsSync(contextFilePath)) {
+    projectContext = fs.readFileSync(contextFilePath, 'utf-8');
+  }
+
+  // Build and send summary prompt
+  const summaryPrompt = buildSummaryPrompt(prDetails, projectContext);
+
+  spinner = ora('Analyzing changes with AI...').start();
+  let aiResponse: string;
+  try {
+    aiResponse = await aiProvider.sendPrompt(summaryPrompt, {});
+  } catch (error) {
+    spinner.fail('AI analysis failed');
+    throw error;
+  }
+  spinner.succeed('Analysis complete');
+
+  // Display the summary
+  console.log('\n' + chalk.bold.hex(INFO_COLOR)('─── PR Summary Overview ───'));
+  console.log(aiResponse.trim());
+  console.log();
+
+  // Dry-run: display only, no action
+  if (options.dryRun) {
+    console.log(chalk.hex(WARNING_COLOR)('⚠ Dry run mode — no action taken'));
+    return;
+  }
+
+  const decision = await askSummaryApprovalDecision(platform.getName());
+
+  if (decision.action === 'skip') {
+    console.log(chalk.hex(SECONDARY_COLOR)('\nNo review action taken'));
+    return;
+  }
+
+  const commitSha = platform.getCommitRef(prDetails);
+  const summaryBody = aiResponse.trim();
+
+  const submitWithSpinner = async (
+    spinnerText: string,
+    action: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT',
+    successText: string
+  ) => {
+    spinner = ora(spinnerText).start();
+    try {
+      await platform.submitReviewWithComments(prId, { action, body: summaryBody, comments: [] }, commitSha);
+    } catch (error) {
+      spinner.fail('Submission failed');
+      throw error;
+    }
+    spinner.succeed(chalk.hex(SUCCESS_COLOR)(successText));
+  };
+
+  if (decision.action === 'approve') {
+    const confirmed = await askConfirmation('⚠️  Are you sure you want to APPROVE this PR?');
+    if (confirmed) {
+      await submitWithSpinner('Submitting PR approval...', 'APPROVE', `PR #${prId} approved ✓`);
+    } else {
+      console.log(chalk.hex(SECONDARY_COLOR)('\nApproval cancelled'));
+    }
+  } else if (decision.action === 'request_changes') {
+    const confirmed = await askConfirmation('⚠️  Are you sure you want to REQUEST CHANGES for this PR?');
+    if (confirmed) {
+      await submitWithSpinner('Submitting change request...', 'REQUEST_CHANGES', `Changes requested for PR #${prId}`);
+    } else {
+      console.log(chalk.hex(SECONDARY_COLOR)('\nChange request cancelled'));
+    }
+  } else if (decision.action === 'comment') {
+    await submitWithSpinner('Posting review summary...', 'COMMENT', `Review summary posted to PR #${prId}`);
+  }
+}
 
 export interface ReplSession {
   platform: GitPlatform;
@@ -68,6 +163,29 @@ export async function reviewPullRequest(
       },
     ]);
     prId = selectedPr;
+  }
+
+  // Determine review mode (--summary flag or interactive selection)
+  let summaryMode = options.summary ?? false;
+
+  if (!summaryMode) {
+    const { reviewMode } = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'reviewMode',
+        message: 'Select review mode:',
+        choices: [
+          { name: 'Suggestions moderation', value: 'moderation' },
+          { name: 'Summary overview', value: 'summary' },
+        ],
+      },
+    ]);
+    summaryMode = reviewMode === 'summary';
+  }
+
+  if (summaryMode) {
+    await runSummaryReview(platform, aiProvider, prId!, options);
+    return;
   }
 
   // Determine strictness level (flag > config > prompt)

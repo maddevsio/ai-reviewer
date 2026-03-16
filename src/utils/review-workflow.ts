@@ -30,6 +30,7 @@ export interface ReviewComment {
 export interface ReviewOptions {
   post?: boolean;
   dryRun?: boolean;
+  summary?: boolean;
   strictness?: ReviewStrictness;
 }
 
@@ -332,6 +333,33 @@ export async function askPRApprovalDecision(
 
     return { action: reviewAction, reviewBody };
   }
+
+  return { action: reviewAction };
+}
+
+/**
+ * Ask user what to do after viewing a PR summary overview.
+ * Approve / Request Changes (GitHub + Bitbucket only) / Post as general comment / Cancel
+ */
+export async function askSummaryApprovalDecision(platformName?: string): Promise<PRApprovalDecision> {
+  // GitLab doesn't support "Request changes" via public API
+  const supportsRequestChanges = platformName !== 'GitLab';
+
+  const choices = [
+    { name: 'Approve PR', value: 'approve' },
+    ...(supportsRequestChanges ? [{ name: 'Request changes', value: 'request_changes' }] : []),
+    { name: 'Post as general comment', value: 'comment' },
+    { name: 'Cancel', value: 'skip' },
+  ];
+
+  const { reviewAction } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'reviewAction',
+      message: 'What would you like to do with this PR?',
+      choices,
+    },
+  ]);
 
   return { action: reviewAction };
 }

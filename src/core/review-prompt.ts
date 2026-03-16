@@ -213,6 +213,61 @@ export function buildReviewPrompt(prDetails: PullRequestDetails, strictness: Rev
 }
 
 /**
+ * Build a summary overview prompt focused on "Is it safe to merge this PR?"
+ * Returns a free-form narrative — no structured FILE/LINE/COMMENT format.
+ */
+export function buildSummaryPrompt(prDetails: PullRequestDetails, projectContext?: string): string {
+  const annotatedDiff = annotateDiffWithLineNumbers(prDetails.diff);
+
+  let prompt = `You are a senior code reviewer performing a safety assessment of a pull request.
+
+PR Title: ${prDetails.pr.title}
+PR Description: ${prDetails.description || 'No description provided'}
+
+Changed Files (${prDetails.files.length}):
+${prDetails.files.map((f) => `- ${f.path} (+${f.additions}/-${f.deletions})`).join('\n')}`;
+
+  if (projectContext) {
+    prompt += `\n\nPROJECT-SPECIFIC CONTEXT:
+${projectContext}`;
+  }
+
+  prompt += `\n\nFull Diff:
+\`\`\`
+${annotatedDiff}
+\`\`\`
+
+Your task is to answer one key question: IS IT SAFE TO MERGE THIS PR?
+
+Focus exclusively on:
+- Critical bugs that could cause crashes, data loss, or incorrect behavior in production
+- Security vulnerabilities (injection, auth bypass, sensitive data exposure, etc.)
+- Breaking changes to APIs, interfaces, or contracts
+- Missing error handling in critical execution paths
+- Obvious logic errors or off-by-one mistakes
+- Performance issues severe enough to cause service degradation
+
+Do NOT report on: code style, naming conventions, documentation gaps, test coverage, or minor improvements.
+
+Respond using this exact structure:
+
+## Overall Assessment
+[SAFE TO MERGE / NEEDS ATTENTION / DO NOT MERGE]
+One-sentence verdict.
+
+## Critical Issues
+[List only blockers. If none, write "None identified."]
+
+## Notable Concerns
+[Secondary issues worth knowing but not blocking. If none, write "None."]
+
+## Summary
+2–3 sentences wrapping up your assessment.`;
+
+  return prompt;
+}
+
+/**
  * Parse REF_LINES value into array of [start, end] tuples.
  * Supports formats: "5-8", "5-8, 45-47", "12", "" (empty)
  */

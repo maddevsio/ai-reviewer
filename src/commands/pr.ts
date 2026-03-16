@@ -14,6 +14,7 @@ export const prCommand = new Command('pr')
   .argument('[id]', 'Pull request ID/number to review (optional, will show interactive selection if omitted)')
   .option('--post', 'Automatically post accepted comments without confirmation prompt')
   .option('--dry-run', 'Preview what comments would be posted without actually posting them')
+  .option('--summary', 'Review in summary overview mode — outputs a high-level safety assessment instead of inline comments')
   .option(
     '-s, --strictness <level>',
     'Review strictness level:\n' +
@@ -34,7 +35,7 @@ export const prCommand = new Command('pr')
     '                            platform     - Platform operations (GitHub/Bitbucket)\n' +
     '                            (omit value to enable all categories)'
   )
-  .action(async (id: string | undefined, options: { post?: boolean; dryRun?: boolean; strictness?: string; verbose?: string | boolean }) => {
+  .action(async (id: string | undefined, options: { post?: boolean; dryRun?: boolean; summary?: boolean; strictness?: string; verbose?: string | boolean }) => {
     try {
       // Enable verbose logging if requested
       if (options.verbose !== undefined) {

@@ -237,13 +237,17 @@ export class BitbucketPlatform extends BaseGitPlatform {
     try {
       logger.logPlatform('submitReview', `Submitting review for PR #${prId} with action: ${action}`);
 
+      // Bitbucket's approve/request-changes endpoints accept no body — post it as a general comment first
+      if (body) {
+        await this.postComment(prId, { body });
+      }
+
       if (action === 'APPROVE') {
         const url = `/repositories/${this.config.workspace}/${this.config.repoSlug}/pullrequests/${prId}/approve`;
         const headers = { 'Content-Type': undefined };
 
         logger.logPlatformApiRequest('POST', url, headers, undefined);
 
-        // Approve the PR (remove Content-Type header as Bitbucket approve endpoint expects no body)
         await this.api.post(url, undefined, { headers });
 
         logger.logPlatform('submitReview', `PR #${prId} approved successfully`);
@@ -253,15 +257,11 @@ export class BitbucketPlatform extends BaseGitPlatform {
 
         logger.logPlatformApiRequest('POST', url, headers, undefined);
 
-        // Request changes on the PR (remove Content-Type header, similar to approve)
         await this.api.post(url, undefined, { headers });
 
         logger.logPlatform('submitReview', `Changes requested for PR #${prId}`);
-      } else if (action === 'COMMENT') {
-        // For Bitbucket, all comments are already posted individually via postComment()
-        // No need to post an additional general comment
-        // (Unlike GitHub which bundles everything in a single review)
       }
+      // COMMENT: body already posted above, no status change needed
     } catch (error: any) {
       return this.handleApiError(error, 'submit review');
     }
